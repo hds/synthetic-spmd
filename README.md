@@ -1,0 +1,4 @@
+synthetic-spmd
+==============
+
+Synthetic SPMD
