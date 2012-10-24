@@ -19,8 +19,15 @@ struct __SSPeers  {
 typedef struct __SSPeers SSPeers;
 typedef struct __SSPeers * SSPeersRef;
 
+struct __SSWorkUnit  {
+	unsigned int	weight; // weight
+};
+typedef struct __SSWorkUnit SSWorkUnit;
+
 SSPeers initPeers(unsigned int *dims, int rank);
 
+void work(SSWorkUnit *work_units);
+void peerCommunication(SSPeers *peers, int rank);
 
 //SSPeersRef ssPeersCreate();
 //void ssPeersRelease(SSPeersRef peers);
