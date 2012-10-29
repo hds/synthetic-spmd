@@ -8,6 +8,7 @@
 #define	GRID_WRAP	(1)
 #define	FORCE_GRID_WRAP	(0)
 
+#define	SQRT_MAX_EL	(4)
 
 // Define time intervals as longs.
 //typedef t_interval	long
@@ -33,12 +34,25 @@ struct __SSWorkUnit  {
 };
 typedef struct __SSWorkUnit SSWorkUnit;
 
+struct __SSWorkMatrices  {
+	unsigned int	n;
+	double		*m1;
+	double		*m2;
+	double		*r;
+};
+typedef struct __SSWorkMatrices SSWorkMatrices;
+
 SSAppConfig *initAppConfig(int argc, char **argv, int mpi_size);
+SSAppConfig *displayUsageAndReleaseConfig(SSAppConfig *config);
 void releaseAppConfig(SSAppConfig *config);
 
 SSPeers initPeers(unsigned int *dims, int rank);
 
-void work(SSWorkUnit *work_units);
+SSWorkMatrices initWorkMatrices(int n);
+void printWorkMatrices(SSWorkMatrices matrices);
+void releaseWorkMatrices(SSWorkMatrices *matrices);
+
+void work(SSWorkUnit *work_units, SSWorkMatrices matrices);
 void peerCommunication(SSPeers *peers, int rank);
 
 //SSPeersRef ssPeersCreate();

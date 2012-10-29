@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
+#include <time.h>
 
 #include "synthetic-spmd.h"
 
@@ -10,6 +11,7 @@ int main(int argc, char **argv)
 	int 		mpi_rank, mpi_size;
 	SSAppConfig	*config;
 	SSPeers		peers;
+	SSWorkMatrices	matrices;
 
 	MPI_Init(&argc,&argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
@@ -25,6 +27,12 @@ int main(int argc, char **argv)
 //		dims[1] = 2;
 		peers = initPeers(config->dims, mpi_rank);
 
+		matrices = initWorkMatrices(4);
+		printWorkMatrices(matrices);
+
+		work(NULL, matrices);
+		printWorkMatrices(matrices);
+
 		peerCommunication(&peers, mpi_rank);
 	}
 	    
@@ -33,9 +41,22 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-void work(SSWorkUnit *work_units)
+void work(SSWorkUnit *work_units, SSWorkMatrices matrices)
 {
+	unsigned int	i, j, k;
+
 	// Do work
+	for (j = 0; j < matrices.n; j++)  {
+		for (i = 0; i < matrices.n; i++)  {
+			// j-th row of m1 x i-th column of m2
+			matrices.r[j*matrices.n + i] = 0;
+			for (k = 0; k < matrices.n; k++)  {
+				matrices.r[j*matrices.n + i] += matrices.m1[j*matrices.n + k] * matrices.m2[k*matrices.n + i];
+			}
+		}
+	}
+
+
 }
 
 void peerCommunication(SSPeers *peers, int rank)
@@ -76,6 +97,51 @@ void peerCommunication(SSPeers *peers, int rank)
 
 
 }
+
+SSAppConfig *initAppConfig(int argc, char **argv, int mpi_size)
+{
+	unsigned int	i;
+	SSAppConfig	*config = NULL;
+
+	if ((config = (SSAppConfig *)malloc(sizeof(SSAppConfig))) == NULL)  {
+		fprintf(stderr, "Could not allocate memory for SSAppConfig.\n");
+		return config;
+	}
+	
+	// Default values
+	config->dims[0] = 0;
+	config->dims[1] = 0;
+	config->wunits = 0;
+	config->wunit_weight[0] = 0;
+	config->wunit_weight[1] = 0;
+	config->comm_weight = 0;
+	config->verbose = 0;
+
+	for (i = 1; i < argc; i++)  {
+		if (strcmp(argv[i], "-w") == 0)  {
+			if (argc <= i+1)
+				return displayUsageAndReleaseConfig(config);
+			config->wunits = atoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-d") == 0)  {
+			if (argc <= i+1)
+				return displayUsageAndReleaseConfig(config);
+			if (sscanf(argv[++i], "%dx%d", &(config->dims[0]), &(config->dims[1])) != 2)  {
+				fprintf(stderr, "error: Dimensions must be in the format <int>x<int> (they were %s)\n", argv[i]);
+				return displayUsageAndReleaseConfig(config);
+			}
+			if (config->dims[0] * config->dims[1] != mpi_size)  {
+				fprintf(stderr, "error: Dimensions %d x %d do not equal MPI size %d.\n", config->dims[0], config->dims[1], mpi_size);
+				return displayUsageAndReleaseConfig(config);
+			}
+		}
+		else if (strcmp(argv[i], "-v") == 0)  {
+			config->verbose = 1;
+		}
+	}
+
+	return config;
+} // initAppConfig()
 
 SSPeers initPeers(unsigned int *dims, int rank)
 {
@@ -131,7 +197,103 @@ SSPeers initPeers(unsigned int *dims, int rank)
 	return peers;
 }
 
-SSAppConfig *displayUsageAndFreeConfig(SSAppConfig *config)  {
+SSWorkMatrices initWorkMatrices(int n)
+{
+	SSWorkMatrices	matrices = {0, NULL, NULL};
+	unsigned int	i;
+
+	// We want two matrices.
+	if ((matrices.m1 = (double *)malloc(sizeof(double)*n*n)) == NULL)  {
+		fprintf(stderr, "Could not assign %dx%d matrix.\n", n, n);
+		return matrices;
+	}
+
+	if ((matrices.m2 = (double *)malloc(sizeof(double)*n*n)) == NULL)  {
+		fprintf(stderr, "Could not assign %dx%d matrix.\n", n, n);
+		free(matrices.m1);
+		return matrices;
+	}
+
+	if ((matrices.r = (double *)malloc(sizeof(double)*n*n)) == NULL)  {
+		fprintf(stderr, "Could not assign %dx%d matrix.\n", n, n);
+		free(matrices.m1);
+		free(matrices.m2);
+		return matrices;
+	}
+
+	matrices.n = n;
+
+	//srandom(time(NULL));
+	for (i = 0; i < matrices.n*matrices.n; i++)  {
+		matrices.m1[i] = (double)(random()%SQRT_MAX_EL) * (double)(random()%SQRT_MAX_EL) * (random()%2 ? 1 : -1);
+		matrices.m2[i] = (double)(random()%SQRT_MAX_EL) * (double)(random()%SQRT_MAX_EL) * (random()%2 ? 1 : -1);
+		matrices.r[i] = 0.0;
+	}
+
+	return matrices;
+} // initWorkMatrices()
+
+void printSquareMatrix(double *m, unsigned int n, char *name)
+{
+	unsigned int	i, j;
+
+	for (j = 0; j < n; j++)  {
+		if ((n-1)/2 == j)
+			printf("%s = |", name);
+		else
+			printf("     |");
+		for (i = 0; i < n; i++)  {
+			printf(" %4.0lf", m[j*n + i]);
+		}
+		printf(" |\n");
+	}
+	printf("\n");
+}
+
+void printWorkMatrices(SSWorkMatrices matrices)
+{
+
+	printSquareMatrix(matrices.m1, matrices.n, "m1");
+	printSquareMatrix(matrices.m2, matrices.n, "m2");
+	printSquareMatrix(matrices.r, matrices.n, "r ");
+
+//	for (j = 0; j < matrices.n; j++)  {
+//		if ((matrices.n-1)/2 == j)
+//			printf("m2 = |");
+//		else
+//			printf("     |");
+//		for (i = 0; i < matrices.n; i++)  {
+//			printf(" %4.0lf", matrices.m2[j*matrices.n + i]);
+//		}
+//		printf(" |\n");
+//	}
+//
+//	for (j = 0; j < matrices.n; j++)  {
+//		if ((matrices.n-1)/2 == j)
+//			printf("r  = |");
+//		else
+//			printf("     |");
+//		for (i = 0; i < matrices.n; i++)  {
+//			printf(" %4.0lf", matrices.r[j*matrices.n + i]);
+//		}
+//		printf(" |\n");
+//	}
+
+} // printMatrices()
+
+void releaseWorkMatrices(SSWorkMatrices *matrices)
+{
+	if (matrices->m1 != NULL)
+		free(matrices->m1);
+	matrices->m1 = NULL;
+
+	if (matrices->m2 != NULL)
+		free(matrices->m2);
+	matrices->m2 = NULL;
+} // releaseWorkMatrices()
+
+SSAppConfig *displayUsageAndReleaseConfig(SSAppConfig *config)
+{
 	fprintf(stderr, "usage: synthetic-spmd [-v] [-w work_units]\n\n");
 
 	releaseAppConfig(config);
@@ -139,51 +301,6 @@ SSAppConfig *displayUsageAndFreeConfig(SSAppConfig *config)  {
 
 	return config;
 } // displayUsage()
-
-SSAppConfig *initAppConfig(int argc, char **argv, int mpi_size)
-{
-	unsigned int	i;
-	SSAppConfig	*config = NULL;
-
-	if ((config = (SSAppConfig *)malloc(sizeof(SSAppConfig))) == NULL)  {
-		fprintf(stderr, "Could not allocate memory for SSAppConfig.\n");
-		return config;
-	}
-	
-	// Default values
-	config->dims[0] = 0;
-	config->dims[1] = 0;
-	config->wunits = 0;
-	config->wunit_weight[0] = 0;
-	config->wunit_weight[1] = 0;
-	config->comm_weight = 0;
-	config->verbose = 0;
-
-	for (i = 1; i < argc; i++)  {
-		if (strcmp(argv[i], "-w") == 0)  {
-			if (argc <= i+1)
-				return displayUsageAndFreeConfig(config);
-			config->wunits = atoi(argv[++i]);
-		}
-		else if (strcmp(argv[i], "-d") == 0)  {
-			if (argc <= i+1)
-				return displayUsageAndFreeConfig(config);
-			if (sscanf(argv[++i], "%dx%d", &(config->dims[0]), &(config->dims[1])) != 2)  {
-				fprintf(stderr, "error: Dimensions must be in the format <int>x<int> (they were %s)\n", argv[i]);
-				return displayUsageAndFreeConfig(config);
-			}
-			if (config->dims[0] * config->dims[1] != mpi_size)  {
-				fprintf(stderr, "error: Dimensions %d x %d do not equal MPI size %d.\n", config->dims[0], config->dims[1], mpi_size);
-				return displayUsageAndFreeConfig(config);
-			}
-		}
-		else if (strcmp(argv[i], "-v") == 0)  {
-			config->verbose = 1;
-		}
-	}
-
-	return config;
-} // initAppConfig()
 
 void releaseAppConfig(SSAppConfig *config)
 {
