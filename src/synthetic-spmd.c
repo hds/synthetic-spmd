@@ -5,40 +5,55 @@
 #include <time.h>
 
 #include "synthetic-spmd.h"
+#include "ss-timing.h"
 
 int main(int argc, char **argv)
 {
-	int 		mpi_rank, mpi_size;
 	SSAppConfig	*config;
 	SSPeers		peers;
 	SSWorkMatrices	matrices;
 
 	MPI_Init(&argc,&argv);
-	MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-	config = initAppConfig(argc, argv, mpi_size);
+	config = initAppConfig(argc, argv);
 	if (config)  {
 
-		//printf("Hello World from Node %d of %d\n", mpi_rank, mpi_size);
+		peers = initPeers(config->dims, config->mpi_rank);
+		matrices = initWorkMatrices(WORK_MATRIX_SIZE);
 
-//		unsigned int	dims[SPMD_GRID_DIMS];
-//		dims[0] = 2;
-//		dims[1] = 2;
-		peers = initPeers(config->dims, mpi_rank);
+		applicationLoop(config, peers, matrices);
 
-		matrices = initWorkMatrices(4);
-		printWorkMatrices(matrices);
-
-		work(NULL, matrices);
-		printWorkMatrices(matrices);
-
-		peerCommunication(&peers, mpi_rank);
+		releaseWorkMatrices(&matrices);
 	}
 	    
 	MPI_Finalize();
 
 	return 0;
+}
+
+void applicationLoop(SSAppConfig *config, SSPeers peers, SSWorkMatrices matrices)
+{
+	unsigned int	i;
+	SSTInterval	t1, t2;
+
+
+	for (i = 0; i < config->iterations; i++)  {
+
+		//printWorkMatrices(matrices);
+		
+		
+		t1 = getCurrentTime();
+		work(NULL, matrices);
+		t2 = getCurrentTime();
+		printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
+
+		t1 = t2;
+		peerCommunication(&peers, config->mpi_rank);
+		t2 = getCurrentTime();
+		printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
+
+
+	}
 }
 
 void work(SSWorkUnit *work_units, SSWorkMatrices matrices)
@@ -62,43 +77,55 @@ void work(SSWorkUnit *work_units, SSWorkMatrices matrices)
 void peerCommunication(SSPeers *peers, int rank)
 {
 	unsigned int 	i;
-	int		local_data, recv_data;
+	//int		local_data, recv_data;
+	SSCommData	*send, *recv;
 	MPI_Request	req;
 	MPI_Status	status;
-	local_data = rank;
+	//local_data = rank;
+
+	send = initCommData(10000, SSCommDataInitActionZero);
+	recv = initCommData(10000, SSCommDataInitActionNone);
+
+	if (send == NULL || recv == NULL)  {
+		fprintf(stderr, "Sending or receiving data couldn't be allocated.\n");
+		return;
+	}
 
 	for (i = 0; i < peers->n; i++)  {
 		if (peers->ids[i] < 0)
 			continue;
-		MPI_Isend(&local_data,		// buf
-		          1,			// count
-			  MPI_INT,		// datatype
+		MPI_Isend(send->data,		// buf
+		          send->n,		// count
+			  MPI_UNSIGNED_CHAR,	// datatype
 			  peers->ids[i],	// dest
 			  123,			// tag
 		          MPI_COMM_WORLD,	// communicator
 			  &req);		// request
 		MPI_Request_free(&req);
-		printf("[%d] Sent %d to neighbour %d (%d)\n", rank, local_data, i, peers->ids[i]);
+		//printf("[%d] Sent %d to neighbour %d (%d)\n", rank, local_data, i, peers->ids[i]);
 	}
 
 	for (i = 0; i < peers->n; i++)  {
 		if (peers->ids[i] < 0)
 			continue;
 		//printf("[%d] ready to receive from neighbour %d (%d)\n", rank, i, peers->ids[i]);
-		MPI_Recv(&recv_data,		// buf
-		         1,			// count (max)
-			 MPI_INT,		// datatype
+		MPI_Recv(recv->data,		// buf
+		         recv->n,		// count (max)
+			 MPI_UNSIGNED_CHAR,	// datatype
 			 peers->ids[i],		// source
 			 123,			// tag
 			 MPI_COMM_WORLD,	// communicator
 			 &status);		// status
-		printf("[%d] Received %d from neighbour %d (%d)\n", rank, recv_data, i, peers->ids[i]);
+		//printf("[%d] Received %d from neighbour %d (%d)\n", rank, recv_data, i, peers->ids[i]);
 	}
+
+	releaseCommData(send);
+	releaseCommData(recv);
 
 
 }
 
-SSAppConfig *initAppConfig(int argc, char **argv, int mpi_size)
+SSAppConfig *initAppConfig(int argc, char **argv)
 {
 	unsigned int	i;
 	SSAppConfig	*config = NULL;
@@ -115,7 +142,13 @@ SSAppConfig *initAppConfig(int argc, char **argv, int mpi_size)
 	config->wunit_weight[0] = 0;
 	config->wunit_weight[1] = 0;
 	config->comm_weight = 0;
+	config->iterations = 10;
 	config->verbose = 0;
+
+	MPI_Comm_rank(MPI_COMM_WORLD, &(config->mpi_rank));
+	MPI_Comm_size(MPI_COMM_WORLD, &(config->mpi_size));
+
+	
 
 	for (i = 1; i < argc; i++)  {
 		if (strcmp(argv[i], "-w") == 0)  {
@@ -130,8 +163,8 @@ SSAppConfig *initAppConfig(int argc, char **argv, int mpi_size)
 				fprintf(stderr, "error: Dimensions must be in the format <int>x<int> (they were %s)\n", argv[i]);
 				return displayUsageAndReleaseConfig(config);
 			}
-			if (config->dims[0] * config->dims[1] != mpi_size)  {
-				fprintf(stderr, "error: Dimensions %d x %d do not equal MPI size %d.\n", config->dims[0], config->dims[1], mpi_size);
+			if (config->dims[0] * config->dims[1] != config->mpi_size)  {
+				fprintf(stderr, "error: Dimensions %d x %d do not equal MPI size %d.\n", config->dims[0], config->dims[1], config->mpi_size);
 				return displayUsageAndReleaseConfig(config);
 			}
 		}
@@ -197,6 +230,52 @@ SSPeers initPeers(unsigned int *dims, int rank)
 	return peers;
 }
 
+SSCommData *initCommData(unsigned int weight, SSCommDataInitAction init_action)
+{
+	SSCommData	*cdata = NULL;
+	unsigned int	i;
+
+	if ((cdata = (SSCommData*)malloc(sizeof(SSCommData))) == NULL)  {
+		fprintf(stderr, "Could not allocate memory for SSCommData structure.\n");
+		return cdata;
+	}
+
+	cdata->n = weight;
+	cdata->data = NULL;
+	if ((cdata->data = (unsigned char *)malloc(sizeof(unsigned char)*cdata->n)) == NULL)  {
+		fprintf(stderr, "Could not allocate memory for SSCommData data.\n");
+		free(cdata);
+		cdata = NULL;
+		return cdata;
+	}
+
+	if (init_action == SSCommDataInitActionNone)  {
+		// Nothing.
+	}
+	else if (init_action == SSCommDataInitActionZero)  {
+		for (i = 0; i < cdata->n; i++)  {
+			cdata->data[i] = (unsigned char)(0);
+		}
+	}
+	else if (init_action == SSCommDataInitActionRandom)  {
+		for (i = 0; i < cdata->n; i++)  {
+			cdata->data[i] = (unsigned char)(random()%sizeof(unsigned char));
+		}
+	}
+
+	return cdata;
+} // initCommData()
+
+void releaseCommData(SSCommData *cdata)
+{
+	if (cdata->data != NULL)
+		free(cdata->data);
+	cdata->data = NULL;
+
+	if (cdata != NULL)
+		free(cdata);
+} // releaseCommData()
+
 SSWorkMatrices initWorkMatrices(int n)
 {
 	SSWorkMatrices	matrices = {0, NULL, NULL};
@@ -256,28 +335,6 @@ void printWorkMatrices(SSWorkMatrices matrices)
 	printSquareMatrix(matrices.m1, matrices.n, "m1");
 	printSquareMatrix(matrices.m2, matrices.n, "m2");
 	printSquareMatrix(matrices.r, matrices.n, "r ");
-
-//	for (j = 0; j < matrices.n; j++)  {
-//		if ((matrices.n-1)/2 == j)
-//			printf("m2 = |");
-//		else
-//			printf("     |");
-//		for (i = 0; i < matrices.n; i++)  {
-//			printf(" %4.0lf", matrices.m2[j*matrices.n + i]);
-//		}
-//		printf(" |\n");
-//	}
-//
-//	for (j = 0; j < matrices.n; j++)  {
-//		if ((matrices.n-1)/2 == j)
-//			printf("r  = |");
-//		else
-//			printf("     |");
-//		for (i = 0; i < matrices.n; i++)  {
-//			printf(" %4.0lf", matrices.r[j*matrices.n + i]);
-//		}
-//		printf(" |\n");
-//	}
 
 } // printMatrices()
 
