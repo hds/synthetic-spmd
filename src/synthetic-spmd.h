@@ -73,7 +73,7 @@ void releaseWorkMatrices(SSWorkMatrices *matrices);
 // **** Application Run Loop ****
 void applicationLoop(SSAppConfig *config, SSPeers peers, SSWorkMatrices matrices);
 void work(SSWorkUnit *work_units, SSWorkMatrices matrices);
-void peerCommunication(SSPeers *peers, int rank);
+void peerCommunication(SSPeers *peers, unsigned int comm_weight, int rank);
 
 
 #endif

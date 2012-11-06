@@ -48,7 +48,7 @@ void applicationLoop(SSAppConfig *config, SSPeers peers, SSWorkMatrices matrices
 		printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
 
 		t1 = t2;
-		peerCommunication(&peers, config->mpi_rank);
+		peerCommunication(&peers, config->comm_weight, config->mpi_rank);
 		t2 = getCurrentTime();
 		printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
 
@@ -74,7 +74,7 @@ void work(SSWorkUnit *work_units, SSWorkMatrices matrices)
 
 }
 
-void peerCommunication(SSPeers *peers, int rank)
+void peerCommunication(SSPeers *peers, unsigned int comm_weight, int rank)
 {
 	unsigned int 	i;
 	//int		local_data, recv_data;
@@ -83,8 +83,12 @@ void peerCommunication(SSPeers *peers, int rank)
 	MPI_Status	status;
 	//local_data = rank;
 
-	send = initCommData(10000, SSCommDataInitActionZero);
-	recv = initCommData(10000, SSCommDataInitActionNone);
+	// Sanity check
+	if (comm_weight == 0)
+		return;
+
+	send = initCommData(comm_weight, SSCommDataInitActionZero);
+	recv = initCommData(comm_weight, SSCommDataInitActionNone);
 
 	if (send == NULL || recv == NULL)  {
 		fprintf(stderr, "Sending or receiving data couldn't be allocated.\n");
@@ -140,7 +144,7 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->dims[1] = 0;
 	config->wunits = 0;
 	config->wunit_weight[0] = 0;
-	config->wunit_weight[1] = 0;
+	config->wunit_weight[1] = 1;
 	config->comm_weight = 0;
 	config->iterations = 10;
 	config->verbose = 0;
@@ -167,6 +171,11 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 				fprintf(stderr, "error: Dimensions %d x %d do not equal MPI size %d.\n", config->dims[0], config->dims[1], config->mpi_size);
 				return displayUsageAndReleaseConfig(config);
 			}
+		}
+		else if (strcmp(argv[i], "-c") == 0)  {
+			if (argc <= i+1)
+				return displayUsageAndReleaseConfig(config);
+			config->comm_weight = atoi(argv[++i]);
 		}
 		else if (strcmp(argv[i], "-v") == 0)  {
 			config->verbose = 1;
@@ -351,7 +360,7 @@ void releaseWorkMatrices(SSWorkMatrices *matrices)
 
 SSAppConfig *displayUsageAndReleaseConfig(SSAppConfig *config)
 {
-	fprintf(stderr, "usage: synthetic-spmd [-v] [-w work_units]\n\n");
+	fprintf(stderr, "usage: synthetic-spmd [-v] -d WxH [-w work_units] [-c comm_weight]\n\n");
 
 	releaseAppConfig(config);
 	config = NULL;
