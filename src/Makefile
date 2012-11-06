@@ -20,7 +20,7 @@ CCFLAGS = -g -Wall
 TARGETS = $(BINDIR)/synthetic-spmd
 OBJS = $(OBJDIR)/synthetic-spmd.o $(OBJDIR)/ss-timing.o
 
-all: $(TARGETS) $(BINDIR)
+all: $(BINDIR) $(TARGETS)
 
 $(OBJDIR)/%.o: %.c $(OBJDIR)
 	$(MPICC) $(CFLAGS) -c -o $@ $<
@@ -34,4 +34,7 @@ $(OBJDIR):
 $(BINDIR):
 	$(MKDIR) $@
 
-
+clean:
+	rm -f $(BINDIR)/* $(OBJDIR)/*
+	rmdir $(BINDIR)
+	rmdir $(OBJDIR)
