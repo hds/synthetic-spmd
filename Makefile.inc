@@ -7,8 +7,8 @@
 MPICC = mpicc
 MKDIR = mkdir -p
 
-PRJDIR = $(CURDIR)
-SRCDIR = $(PRJDIR)/src
-OBJDIR = $(PRJDIR)/obj
-BINDIR = $(PRJDIR)/bin
+PRJDIR = $(dir $(lastword $(MAKEFILE_LIST)))
+SRCDIR = $(PRJDIR)src
+OBJDIR = $(PRJDIR)obj
+BINDIR = $(PRJDIR)bin
 

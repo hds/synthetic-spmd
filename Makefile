@@ -13,6 +13,9 @@ all:
 	@echo "Building Synthetic SPMD"
 	$(MAKE) -C $(SRCDIR)
 
+testpath:
+	@echo $(SRCDIR)
+
 clean:
 	@echo "Cleaning up"
 	$(MAKE) -C $(SRCDIR) clean
