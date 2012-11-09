@@ -10,7 +10,7 @@
 int main(int argc, char **argv)
 {
 	SSAppConfig	*config;
-	SSPeers		peers;
+	SSPeers		*peers;
 	SSWorkArray	*work_array;
 
 	MPI_Init(&argc,&argv);
@@ -22,9 +22,9 @@ int main(int argc, char **argv)
 		workArrayFillUnits(work_array, config->wunit_weight[0], config->wunit_weight[1]);
 		//workArrayPrintUnits(array);
 
-		peers = initPeers(config->dims, config->mpi_rank);
+		peers = peersInit(config->dims, config->mpi_rank);
 
-		applicationLoop(config, &peers, work_array);
+		applicationLoop(config, peers, work_array);
 
 		workArrayRelease(work_array);
 	}
@@ -58,7 +58,7 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 
 		// Communication
 		t1 = t2;
-		peerCommunication(peers, config->comm_weight, config->mpi_rank);
+		communication(peers, config->comm_weight, config->mpi_rank);
 		t2 = getCurrentTime();
 		printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
 	}
@@ -86,62 +86,12 @@ void work(SSWorkArray *work_array, SSWorkMatrices matrices)
 		}
 	}
 
-}
+} // work()
 
-void peerCommunication(SSPeers *peers, unsigned int comm_weight, int rank)
+void communication(SSPeers *peers, unsigned int comm_weight, int rank)
 {
-	unsigned int 	i;
-	//int		local_data, recv_data;
-	SSCommData	*send, *recv;
-	MPI_Request	req;
-	MPI_Status	status;
-	//local_data = rank;
-
-	// Sanity check
-	if (comm_weight == 0)
-		return;
-
-	send = initCommData(comm_weight, SSCommDataInitActionZero);
-	recv = initCommData(comm_weight, SSCommDataInitActionNone);
-
-	if (send == NULL || recv == NULL)  {
-		fprintf(stderr, "Sending or receiving data couldn't be allocated.\n");
-		return;
-	}
-
-	for (i = 0; i < peers->n; i++)  {
-		if (peers->ids[i] < 0)
-			continue;
-		MPI_Isend(send->data,		// buf
-		          send->n,		// count
-			  MPI_UNSIGNED_CHAR,	// datatype
-			  peers->ids[i],	// dest
-			  123,			// tag
-		          MPI_COMM_WORLD,	// communicator
-			  &req);		// request
-		MPI_Request_free(&req);
-		//printf("[%d] Sent %d to neighbour %d (%d)\n", rank, local_data, i, peers->ids[i]);
-	}
-
-	for (i = 0; i < peers->n; i++)  {
-		if (peers->ids[i] < 0)
-			continue;
-		//printf("[%d] ready to receive from neighbour %d (%d)\n", rank, i, peers->ids[i]);
-		MPI_Recv(recv->data,		// buf
-		         recv->n,		// count (max)
-			 MPI_UNSIGNED_CHAR,	// datatype
-			 peers->ids[i],		// source
-			 123,			// tag
-			 MPI_COMM_WORLD,	// communicator
-			 &status);		// status
-		//printf("[%d] Received %d from neighbour %d (%d)\n", rank, recv_data, i, peers->ids[i]);
-	}
-
-	releaseCommData(send);
-	releaseCommData(recv);
-
-
-}
+	peerCommunication(peers, comm_weight, rank);
+} // communication ()
 
 SSAppConfig *initAppConfig(int argc, char **argv)
 {
@@ -212,105 +162,6 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	return config;
 } // initAppConfig()
 
-SSPeers initPeers(unsigned int *dims, int rank)
-{
-	SSPeers		peers;
-	peers.n = 0;
-
-	if (SPMD_GRID_DIMS != 2)  {
-		fprintf(stderr, "Only 2 dimensional grids currently supported\n");
-		return peers;
-	}
-	unsigned int	x, y;
-	unsigned int	i;
-	unsigned int	px, py;
-
-	x = rank % dims[0]; // dims[0] is the grid width
-	y = rank / dims[0];
-
-	for (i = 0; i < MAX_PEER_COUNT; i++)
-		peers.ids[i] = -1;
-
-	// North peer
-	if ((y > 0) || (GRID_WRAP && dims[1] > 2) || (FORCE_GRID_WRAP))  {
-		px = x;
-		py = (y-1+dims[1]) % dims[1];
-		peers.ids[0] = (py*dims[0]) + px;
-	}
-
-	// East peer
-	if ((x < dims[0]-1) || (GRID_WRAP && dims[0] > 2) || (FORCE_GRID_WRAP))  {
-		px = (x+1) % dims[0];
-		py = y;
-		peers.ids[1] = (py*dims[0]) + px;
-	}
-	
-	// South peer	
-	if ((y < dims[1]-1) || (GRID_WRAP && dims[1] > 2) || (FORCE_GRID_WRAP))  {
-		px = x;
-		py = (y+1) % dims[1];
-		peers.ids[2] = (py*dims[0]) + px;
-	}
-
-	// West peer
-	if ((x > 0) || (GRID_WRAP && dims[0] > 2) || (FORCE_GRID_WRAP))  {
-		px = (x-1+dims[0]) % dims[0];
-		py = y;
-		peers.ids[3] = (py*dims[0]) + px;
-	}
-
-	peers.n = 4;
-//	printf("[%d] I have coords %d,%d\n", rank, x, y);
-//	printf("    [%d] neigh: %d, %d, %d, %d\n", rank, peers.ids[0], peers.ids[1], peers.ids[2], peers.ids[3]);
-
-	return peers;
-}
-
-SSCommData *initCommData(unsigned int weight, SSCommDataInitAction init_action)
-{
-	SSCommData	*cdata = NULL;
-	unsigned int	i;
-
-	if ((cdata = (SSCommData*)malloc(sizeof(SSCommData))) == NULL)  {
-		fprintf(stderr, "Could not allocate memory for SSCommData structure.\n");
-		return cdata;
-	}
-
-	cdata->n = weight;
-	cdata->data = NULL;
-	if ((cdata->data = (unsigned char *)malloc(sizeof(unsigned char)*cdata->n)) == NULL)  {
-		fprintf(stderr, "Could not allocate memory for SSCommData data.\n");
-		free(cdata);
-		cdata = NULL;
-		return cdata;
-	}
-
-	if (init_action == SSCommDataInitActionNone)  {
-		// Nothing.
-	}
-	else if (init_action == SSCommDataInitActionZero)  {
-		for (i = 0; i < cdata->n; i++)  {
-			cdata->data[i] = (unsigned char)(0);
-		}
-	}
-	else if (init_action == SSCommDataInitActionRandom)  {
-		for (i = 0; i < cdata->n; i++)  {
-			cdata->data[i] = (unsigned char)(random()%sizeof(unsigned char));
-		}
-	}
-
-	return cdata;
-} // initCommData()
-
-void releaseCommData(SSCommData *cdata)
-{
-	if (cdata->data != NULL)
-		free(cdata->data);
-	cdata->data = NULL;
-
-	if (cdata != NULL)
-		free(cdata);
-} // releaseCommData()
 SSAppConfig *displayUsageAndReleaseConfig(SSAppConfig *config)
 {
 	fprintf(stderr, "usage: synthetic-spmd [-v] -d WxH [-u work_units] [-w work_weight_min,work_weight_max] [-c comm_weight]\n\n");
