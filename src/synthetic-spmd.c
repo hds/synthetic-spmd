@@ -19,11 +19,11 @@ int main(int argc, char **argv)
 	if (config)  {
 
 		peers = initPeers(config->dims, config->mpi_rank);
-		matrices = initWorkMatrices(WORK_MATRIX_SIZE);
+		matrices = workMatricesInit(WORK_MATRIX_SIZE);
 
 		applicationLoop(config, peers, matrices);
 
-		releaseWorkMatrices(&matrices);
+		workMatricesRelease(&matrices);
 	}
 	    
 	MPI_Finalize();
@@ -39,7 +39,7 @@ void applicationLoop(SSAppConfig *config, SSPeers peers, SSWorkMatrices matrices
 
 	for (i = 0; i < config->iterations; i++)  {
 
-		//printWorkMatrices(matrices);
+		//workMatricesPrint(matrices);
 		
 		
 		t1 = getCurrentTime();
@@ -284,80 +284,6 @@ void releaseCommData(SSCommData *cdata)
 	if (cdata != NULL)
 		free(cdata);
 } // releaseCommData()
-
-SSWorkMatrices initWorkMatrices(int n)
-{
-	SSWorkMatrices	matrices = {0, NULL, NULL};
-	unsigned int	i;
-
-	// We want two matrices.
-	if ((matrices.m1 = (double *)malloc(sizeof(double)*n*n)) == NULL)  {
-		fprintf(stderr, "Could not assign %dx%d matrix.\n", n, n);
-		return matrices;
-	}
-
-	if ((matrices.m2 = (double *)malloc(sizeof(double)*n*n)) == NULL)  {
-		fprintf(stderr, "Could not assign %dx%d matrix.\n", n, n);
-		free(matrices.m1);
-		return matrices;
-	}
-
-	if ((matrices.r = (double *)malloc(sizeof(double)*n*n)) == NULL)  {
-		fprintf(stderr, "Could not assign %dx%d matrix.\n", n, n);
-		free(matrices.m1);
-		free(matrices.m2);
-		return matrices;
-	}
-
-	matrices.n = n;
-
-	//srandom(time(NULL));
-	for (i = 0; i < matrices.n*matrices.n; i++)  {
-		matrices.m1[i] = (double)(random()%SQRT_MAX_EL) * (double)(random()%SQRT_MAX_EL) * (random()%2 ? 1 : -1);
-		matrices.m2[i] = (double)(random()%SQRT_MAX_EL) * (double)(random()%SQRT_MAX_EL) * (random()%2 ? 1 : -1);
-		matrices.r[i] = 0.0;
-	}
-
-	return matrices;
-} // initWorkMatrices()
-
-void printSquareMatrix(double *m, unsigned int n, char *name)
-{
-	unsigned int	i, j;
-
-	for (j = 0; j < n; j++)  {
-		if ((n-1)/2 == j)
-			printf("%s = |", name);
-		else
-			printf("     |");
-		for (i = 0; i < n; i++)  {
-			printf(" %4.0lf", m[j*n + i]);
-		}
-		printf(" |\n");
-	}
-	printf("\n");
-}
-
-void printWorkMatrices(SSWorkMatrices matrices)
-{
-
-	printSquareMatrix(matrices.m1, matrices.n, "m1");
-	printSquareMatrix(matrices.m2, matrices.n, "m2");
-	printSquareMatrix(matrices.r, matrices.n, "r ");
-
-} // printMatrices()
-
-void releaseWorkMatrices(SSWorkMatrices *matrices)
-{
-	if (matrices->m1 != NULL)
-		free(matrices->m1);
-	matrices->m1 = NULL;
-
-	if (matrices->m2 != NULL)
-		free(matrices->m2);
-	matrices->m2 = NULL;
-} // releaseWorkMatrices()
-
 SSAppConfig *displayUsageAndReleaseConfig(SSAppConfig *config)
 {
 	fprintf(stderr, "usage: synthetic-spmd [-v] -d WxH [-w work_units] [-c comm_weight]\n\n");
@@ -374,20 +300,3 @@ void releaseAppConfig(SSAppConfig *config)
 		free(config);
 } // releaseAppConfig()
 
-//SSPeersRef ssPeersCreate()
-//{
-//	SSPeersRef	peers = NULL;
-//
-//	if ((peers = malloc(sizeof(struct __SSPeers))) == NULL)  {
-//		fprintf(stderr, "Could not create instance of SSPeersRef, out of memory\n");
-//		return peers;
-//	}
-//
-//	return peers;
-//}
-//
-//void ssPeersRelease(SSPeersRef peers)
-//{
-//	if (peers != NULL)
-//		free(peers);
-//}

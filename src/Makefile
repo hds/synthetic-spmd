@@ -12,7 +12,7 @@ LIBS =
 CCFLAGS = -g -Wall
 
 TARGETS = $(BINDIR)/synthetic-spmd
-OBJS = $(OBJDIR)/synthetic-spmd.o $(OBJDIR)/ss-timing.o
+OBJS = $(OBJDIR)/synthetic-spmd.o $(OBJDIR)/ss-timing.o $(OBJDIR)/ss-work.o
 
 .PHONY: all clean
 
