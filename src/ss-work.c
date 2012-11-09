@@ -4,7 +4,12 @@
 
 #include "ss-work.h"
 
-#define	WORK_BLOCK_SIZE	(100)
+#define	WORK_BLOCK_SIZE	(10)
+
+unsigned int maxForArrayLength(unsigned int length)
+{
+	return (length/WORK_BLOCK_SIZE) * WORK_BLOCK_SIZE + (length % WORK_BLOCK_SIZE ? WORK_BLOCK_SIZE : 0);
+} // maxForArrayLength()
 
 SSWorkArray *workArrayInitWithLength(unsigned int length)
 {
@@ -16,7 +21,7 @@ SSWorkArray *workArrayInitWithLength(unsigned int length)
 	}
 
 	array->length = length;
-	array->max = (length/WORK_BLOCK_SIZE) * WORK_BLOCK_SIZE + (length % WORK_BLOCK_SIZE ? WORK_BLOCK_SIZE : 0);
+	array->max = maxForArrayLength(array->length);
 	array->elements = NULL;
 	if ((array->elements = (SSWorkUnit *)malloc(sizeof(SSWorkUnit)*array->max)) == NULL)  {
 		fprintf(stderr, "Could not allocate memory for SSWorkArray elements.\n");
@@ -43,8 +48,15 @@ void workArrayFillUnits(SSWorkArray *array, unsigned int min, unsigned int max)
 {
 	unsigned int	i;
 
-	for (i = 0; i < array->length; i++)  {
-		array->elements[i].weight = random()%(max-min+1) + min;
+	if (min != max)  {
+		for (i = 0; i < array->length; i++)  {
+			array->elements[i].weight = random()%(max-min+1) + min;
+		}
+	}
+	else  {
+		for (i = 0; i < array->length; i++)  {
+			array->elements[i].weight = max;
+		}
 	}
 } // workArrayFillUnits()
 
@@ -59,14 +71,48 @@ void workArrayPrintUnits(SSWorkArray *array)
 	printf(" ]\n");
 } // workArayPrintUnits()
 
-void workArrayPushItems(SSWorkArray *array, SSWorkUnit *items, unsigned int count)
+void workArrayPushItems(SSWorkArray *array, SSWorkArray *new_items)
 {
+	unsigned int	i, offset;
 
+	offset = array->length;
+	if (offset + new_items->length > array->max)  {
+		// Enlarge array.
+		unsigned int	new_max;
+		void		*new_elements;
+		new_max = maxForArrayLength(offset + new_items->length);
+
+		if ((new_elements = realloc(array->elements, new_max)) == NULL)  {
+			fprintf(stderr, "Could not enlarge SSWorkArray elements space. This is BAD.\n");
+			return;
+		}
+
+		array->elements = (SSWorkUnit *)new_elements;
+		array->max = new_max;
+	}
+
+	for (i = 0; i < new_items->length; i++)  {
+		array->elements[offset+i] = new_items->elements[i];
+	}
+	array->length += new_items->length;
+	
 } // workArrayPushItems()
 
-SSWorkUnit *workArrayPopItems(SSWorkArray *array, unsigned int *count)
+SSWorkArray *workArrayPopItems(SSWorkArray *array, unsigned int *count)
 {
-	SSWorkUnit	*poppedItems = NULL;
+	SSWorkArray	*poppedItems;
+	unsigned int	i, offset;
+
+	if (*count > array->length)
+		*count = array->length;
+
+	poppedItems = workArrayInitWithLength(*count);
+
+	offset = array->length - *count;
+	for (i = 0; i < *count; i++)  {
+		poppedItems->elements[i] = array->elements[i+offset];
+	}
+	array->length = array->length - *count;	
 
 	return poppedItems;
 } // workArrayPushItems()

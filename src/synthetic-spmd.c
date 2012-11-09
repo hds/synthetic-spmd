@@ -20,7 +20,8 @@ int main(int argc, char **argv)
 
 		work_array = workArrayInitWithLength(config->wunits);
 		workArrayFillUnits(work_array, config->wunit_weight[0], config->wunit_weight[1]);
-		//workArrayPrintUnits(array);
+		//workArrayPrintUnits(work_array);
+
 
 		peers = peersInit(config->dims, config->mpi_rank);
 

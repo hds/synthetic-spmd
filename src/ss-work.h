@@ -23,8 +23,8 @@ void workArrayRelease(SSWorkArray *array);
 
 void workArrayFillUnits(SSWorkArray *array, unsigned int min, unsigned int max);
 void workArrayPrintUnits(SSWorkArray *array);
-void workArrayPushItems(SSWorkArray *array, SSWorkUnit *items, unsigned int count);
-SSWorkUnit *workArrayPopItems(SSWorkArray *array, unsigned int *count);
+void workArrayPushItems(SSWorkArray *array, SSWorkArray *new_items);
+SSWorkArray *workArrayPopItems(SSWorkArray *array, unsigned int *count);
 
 // **** Work matrices ****
 typedef struct __SSWorkMatrices  {
