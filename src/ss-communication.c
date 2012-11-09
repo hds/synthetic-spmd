@@ -4,6 +4,7 @@
 #include <mpi.h>
 
 #include "ss-communication.h"
+#include "ss-standard.h"
 
 // **** Peers (Neighbours) ****
 
@@ -99,7 +100,7 @@ void peerCommunication(SSPeers *peers, unsigned int comm_weight, int rank)
 		          send->n,		// count
 			  MPI_UNSIGNED_CHAR,	// datatype
 			  peers->ids[i],	// dest
-			  123,			// tag
+			  kSSMPITagComms,	// tag
 		          MPI_COMM_WORLD,	// communicator
 			  &req);		// request
 		MPI_Request_free(&req);
@@ -114,7 +115,7 @@ void peerCommunication(SSPeers *peers, unsigned int comm_weight, int rank)
 		         recv->n,		// count (max)
 			 MPI_UNSIGNED_CHAR,	// datatype
 			 peers->ids[i],		// source
-			 123,			// tag
+			 kSSMPITagComms,	// tag
 			 MPI_COMM_WORLD,	// communicator
 			 &status);		// status
 		//printf("[%d] Received %d from neighbour %d (%d)\n", rank, recv_data, i, peers->ids[i]);

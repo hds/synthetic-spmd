@@ -6,6 +6,7 @@
 
 #include "synthetic-spmd.h"
 #include "ss-timing.h"
+#include "ss-migration.h"
 
 int main(int argc, char **argv)
 {
@@ -37,9 +38,10 @@ int main(int argc, char **argv)
 
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array)
 {
-	unsigned int	i;
+	unsigned int	i, j;
 	SSTInterval	t1, t2;
 	SSWorkMatrices	matrices;
+	int		movement[MAX_PEER_COUNT];
 	
 	matrices = workMatricesInit(WORK_MATRIX_SIZE);
 
@@ -49,19 +51,32 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 		t1 = getCurrentTime();
 		barrier(config);
 		t2 = getCurrentTime();
-		printf("[%3d] iter: %d, barrier: %ld us\n", config->mpi_rank, i, t2-t1);
+//		printf("[%3d] iter: %d, barrier: %ld us\n", config->mpi_rank, i, t2-t1);
 		
 		// Work
 		t1 = getCurrentTime();
 		work(work_array, matrices);
 		t2 = getCurrentTime();
-		printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
+//		printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
 
 		// Communication
 		t1 = t2;
 		communication(peers, config->comm_weight, config->mpi_rank);
 		t2 = getCurrentTime();
-		printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
+//		printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
+	
+		if (i % 4 == 3)  {
+			for (j = 0; j < MAX_PEER_COUNT; j++)
+				movement[j] = 0;
+			if (config->mpi_rank == 0)
+				movement[1] = 2;
+			else if (config->mpi_rank == 1)
+				movement[3] = -2;
+
+			workUnitMigration(peers, work_array, movement);
+			printf("[%3d] iter: %d, post migration: ", config->mpi_rank, i);
+			workArrayPrintUnits(work_array);
+		}
 	}
 
 
@@ -111,7 +126,7 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->wunit_weight[0] = 0;
 	config->wunit_weight[1] = 1;
 	config->comm_weight = 0;
-	config->iterations = 10;
+	config->iterations = 12;
 	config->verbose = 0;
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &(config->mpi_rank));

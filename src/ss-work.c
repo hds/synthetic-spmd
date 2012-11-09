@@ -35,6 +35,10 @@ SSWorkArray *workArrayInitWithLength(unsigned int length)
 
 void workArrayRelease(SSWorkArray *array)
 {
+	// Safety.
+	if (array == NULL)
+		return;
+
 	if (array->elements != NULL)
 		free(array->elements);
 	array->elements = NULL;	
@@ -207,6 +211,6 @@ void workMatricesRelease(SSWorkMatrices *matrices)
 	if (matrices->m2 != NULL)
 		free(matrices->m2);
 	matrices->m2 = NULL;
-} // releaseWorkMatrices()
+} // workMatricesRelease()
 
 
