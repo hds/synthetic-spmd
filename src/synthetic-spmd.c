@@ -11,19 +11,22 @@ int main(int argc, char **argv)
 {
 	SSAppConfig	*config;
 	SSPeers		peers;
-	SSWorkMatrices	matrices;
+	SSWorkArray	*work_array;
 
 	MPI_Init(&argc,&argv);
 
 	config = initAppConfig(argc, argv);
 	if (config)  {
 
+		work_array = workArrayInitWithLength(config->wunits);
+		workArrayFillUnits(work_array, config->wunit_weight[0], config->wunit_weight[1]);
+		//workArrayPrintUnits(array);
+
 		peers = initPeers(config->dims, config->mpi_rank);
-		matrices = workMatricesInit(WORK_MATRIX_SIZE);
 
-		applicationLoop(config, peers, matrices);
+		applicationLoop(config, &peers, work_array);
 
-		workMatricesRelease(&matrices);
+		workArrayRelease(work_array);
 	}
 	    
 	MPI_Finalize();
@@ -31,46 +34,57 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-void applicationLoop(SSAppConfig *config, SSPeers peers, SSWorkMatrices matrices)
+void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array)
 {
 	unsigned int	i;
 	SSTInterval	t1, t2;
-
+	SSWorkMatrices	matrices;
+	
+	matrices = workMatricesInit(WORK_MATRIX_SIZE);
 
 	for (i = 0; i < config->iterations; i++)  {
-
-		//workMatricesPrint(matrices);
 		
-		
+		// Barrier
 		t1 = getCurrentTime();
-		work(NULL, matrices);
+		barrier(config);
+		t2 = getCurrentTime();
+		printf("[%3d] iter: %d, barrier: %ld us\n", config->mpi_rank, i, t2-t1);
+		
+		// Work
+		t1 = getCurrentTime();
+		work(work_array, matrices);
 		t2 = getCurrentTime();
 		printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
 
+		// Communication
 		t1 = t2;
-		peerCommunication(&peers, config->comm_weight, config->mpi_rank);
+		peerCommunication(peers, config->comm_weight, config->mpi_rank);
 		t2 = getCurrentTime();
 		printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
-
-
 	}
+
+
+	workMatricesRelease(&matrices);
 }
 
-void work(SSWorkUnit *work_units, SSWorkMatrices matrices)
+void barrier(SSAppConfig *config)
 {
-	unsigned int	i, j, k;
+	// This may need to be more complex later on, but for now it's
+	// just an MPI_Barrier call.
 
-	// Do work
-	for (j = 0; j < matrices.n; j++)  {
-		for (i = 0; i < matrices.n; i++)  {
-			// j-th row of m1 x i-th column of m2
-			matrices.r[j*matrices.n + i] = 0;
-			for (k = 0; k < matrices.n; k++)  {
-				matrices.r[j*matrices.n + i] += matrices.m1[j*matrices.n + k] * matrices.m2[k*matrices.n + i];
-			}
+	MPI_Barrier(MPI_COMM_WORLD);
+} // barrier()
+
+void work(SSWorkArray *work_array, SSWorkMatrices matrices)
+{
+	unsigned int	u, w;
+
+
+	for (u = 0; u < work_array->length; u++)  {
+		for (w = 0; w < work_array->elements[u].weight; w++)  {
+			workMatricesMultiply(matrices);
 		}
 	}
-
 
 }
 
@@ -155,10 +169,23 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	
 
 	for (i = 1; i < argc; i++)  {
-		if (strcmp(argv[i], "-w") == 0)  {
+		if (strcmp(argv[i], "-u") == 0)  {
 			if (argc <= i+1)
 				return displayUsageAndReleaseConfig(config);
 			config->wunits = atoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-w") == 0)  {
+			if (argc <= i+1)
+				return displayUsageAndReleaseConfig(config);
+			if (sscanf(argv[++i], "%d,%d", &(config->wunit_weight[0]), &(config->wunit_weight[1])) != 2)  {
+				fprintf(stderr, "error: Work unit weight range must be specified min,max (they were %s)\n", argv[i]);
+				return displayUsageAndReleaseConfig(config);
+			}
+			if (config->wunit_weight[0] > config->wunit_weight[1])  {
+
+				fprintf(stderr, "error: work unit weight min (%d) must be smaller than or equal to max (%d)\n", config->wunit_weight[0], config->wunit_weight[1]);
+				return displayUsageAndReleaseConfig(config);
+			}
 		}
 		else if (strcmp(argv[i], "-d") == 0)  {
 			if (argc <= i+1)
@@ -286,7 +313,7 @@ void releaseCommData(SSCommData *cdata)
 } // releaseCommData()
 SSAppConfig *displayUsageAndReleaseConfig(SSAppConfig *config)
 {
-	fprintf(stderr, "usage: synthetic-spmd [-v] -d WxH [-w work_units] [-c comm_weight]\n\n");
+	fprintf(stderr, "usage: synthetic-spmd [-v] -d WxH [-u work_units] [-w work_weight_min,work_weight_max] [-c comm_weight]\n\n");
 
 	releaseAppConfig(config);
 	config = NULL;

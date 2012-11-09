@@ -18,11 +18,13 @@ typedef struct __SSWorkArray  {
 	SSWorkUnit	*elements;
 } SSWorkArray;
 
-//SSWorkArray *workArrayInitWithLength(unsigned int length);
-//void workArrayRelease(SSWorkArray *array);
-//
-//void workArrayPushItems(SSWorkArray *array, SSWorkUnit *items, unsigned int count);
-//SSWorkUnit *items workArrayPopItems(SSWorkArray *array, unsigned int *count);
+SSWorkArray *workArrayInitWithLength(unsigned int length);
+void workArrayRelease(SSWorkArray *array);
+
+void workArrayFillUnits(SSWorkArray *array, unsigned int min, unsigned int max);
+void workArrayPrintUnits(SSWorkArray *array);
+void workArrayPushItems(SSWorkArray *array, SSWorkUnit *items, unsigned int count);
+SSWorkUnit *workArrayPopItems(SSWorkArray *array, unsigned int *count);
 
 // **** Work matrices ****
 typedef struct __SSWorkMatrices  {
@@ -33,6 +35,7 @@ typedef struct __SSWorkMatrices  {
 } SSWorkMatrices;
 
 SSWorkMatrices workMatricesInit(int n);
+void workMatricesMultiply(SSWorkMatrices matrices);
 void workMatricesPrint(SSWorkMatrices matrices);
 void workMatricesRelease(SSWorkMatrices *matrices);
 

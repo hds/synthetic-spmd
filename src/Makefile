@@ -19,10 +19,10 @@ OBJS = $(OBJDIR)/synthetic-spmd.o $(OBJDIR)/ss-timing.o $(OBJDIR)/ss-work.o
 all: $(BINDIR) $(TARGETS)
 
 $(OBJDIR)/%.o: %.c $(OBJDIR)
-	$(MPICC) $(CFLAGS) -c -o $@ $<
+	$(MPICC) $(CCFLAGS) -c -o $@ $<
 
 $(BINDIR)/synthetic-spmd: $(OBJS)
-	$(MPICC) $(CFLAGS) $(LIBS) -o $@ $^
+	$(MPICC) $(CCFLAGS) $(LIBS) -o $@ $^
 
 $(OBJDIR):
 	$(MKDIR) $@

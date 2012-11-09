@@ -55,8 +55,9 @@ void releaseCommData(SSCommData *cdata);
 SSPeers initPeers(unsigned int *dims, int rank);
 
 // **** Application Run Loop ****
-void applicationLoop(SSAppConfig *config, SSPeers peers, SSWorkMatrices matrices);
-void work(SSWorkUnit *work_units, SSWorkMatrices matrices);
+void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array);
+void barrier(SSAppConfig *config);
+void work(SSWorkArray *work_array, SSWorkMatrices matrices);
 void peerCommunication(SSPeers *peers, unsigned int comm_weight, int rank);
 
 
