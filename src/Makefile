@@ -2,16 +2,10 @@
 # Synthetic SMPD Makefile
 #
 # Author: Hayden Stainsby <hds@caffeineconceps.com>
-# Last serious edit: 2012-11-06
+# Last serious edit: 2012-11-09
 #
 
-CC = gcc
-MPICC = mpicc
-MKDIR = mkdir -p
-
-SRCDIR = .
-OBJDIR = ../obj
-BINDIR = ../bin
+include ../Makefile.inc
 
 INCLUDES = 
 LIBS = 
@@ -19,6 +13,8 @@ CCFLAGS = -g -Wall
 
 TARGETS = $(BINDIR)/synthetic-spmd
 OBJS = $(OBJDIR)/synthetic-spmd.o $(OBJDIR)/ss-timing.o
+
+.PHONY: all clean
 
 all: $(BINDIR) $(TARGETS)
 
