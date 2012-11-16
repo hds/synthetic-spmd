@@ -4,8 +4,6 @@
 
 #include "ss-work.h"
 
-#define	WORK_BLOCK_SIZE	(10)
-
 unsigned int maxForArrayLength(unsigned int length)
 {
 	return (length/WORK_BLOCK_SIZE) * WORK_BLOCK_SIZE + (length % WORK_BLOCK_SIZE ? WORK_BLOCK_SIZE : 0);

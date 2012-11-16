@@ -4,6 +4,7 @@
 
 // Largest size element in the work array.
 #define	SQRT_MAX_EL	(4)
+#define	WORK_BLOCK_SIZE	(10)
 
 
 

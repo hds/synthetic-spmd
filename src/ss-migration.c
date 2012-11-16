@@ -15,30 +15,35 @@ void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement)
 	SSWorkArray	*outgoing[MAX_PEER_COUNT];
 	MPI_Request	req;
 	MPI_Status	status;
-	int		recv_count;
+	SSWorkUnit	dummy_work_unit;
+	SSWorkUnit	*outgoing_work;
+	int		recv_count, send_count;
 
 	for (i = 0; i < MAX_PEER_COUNT; i++)  {
 		if (movement[i] > 0)  { // Sending
 			count = (unsigned int)movement[i];
-			incoming[i] = NULL;
 			outgoing[i] = workArrayPopItems(work_array, &count);
 			movement[i] = (int)count;
 		}
-		else if (movement[i] < 0)  { // Receiving
-			incoming[i] = workArrayInitWithLength(movement[i] * -1);
-			outgoing[i] = NULL;
-		}
 		else  {
-			incoming[i] = NULL;
 			outgoing[i] = NULL;
 		}
+		incoming[i] = workArrayInitWithLength(MAX_MIGRATION);
 	}
 
 	for (i = 0; i < peers->n; i++)  {
-		if (peers->ids[i] < 0 || outgoing[i] == NULL)
+		if (peers->ids[i] < 0)
 			continue;
-		MPI_Isend(outgoing[i]->elements, // buf
-		          outgoing[i]->length*sizeof(SSWorkUnit), // count
+		if (outgoing[i] != NULL)  {
+			send_count = outgoing[i]->length * sizeof(SSWorkUnit);
+			outgoing_work = outgoing[i]->elements;
+		}
+		else  {
+			send_count = 0;
+			outgoing_work = &dummy_work_unit;
+		}
+		MPI_Isend(outgoing_work,	// buf
+		          send_count,		// count
 			  MPI_UNSIGNED_CHAR,	// datatype
 			  peers->ids[i],	// dest
 			  kSSMPITagMigrate,	// tag
@@ -48,10 +53,10 @@ void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement)
 	}
 
 	for (i = 0; i < peers->n; i++)  {
-		if (peers->ids[i] < 0 || incoming[i] == NULL)
+		if (peers->ids[i] < 0)
 			continue;
 		MPI_Recv(incoming[i]->elements, // buf
-		         incoming[i]->length*sizeof(SSWorkUnit), // count (max)
+		         incoming[i]->max*sizeof(SSWorkUnit), // count (max)
 			 MPI_UNSIGNED_CHAR,	// datatype
 			 peers->ids[i],		// source
 			 kSSMPITagMigrate,	// tag

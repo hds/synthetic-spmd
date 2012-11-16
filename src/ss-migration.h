@@ -5,6 +5,8 @@
 #include "ss-work.h"
 #include "ss-communication.h"
 
+#define MAX_MIGRATION	(50)
+
 void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement);
 
 #endif
