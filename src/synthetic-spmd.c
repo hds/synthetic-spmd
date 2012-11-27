@@ -5,8 +5,11 @@
 #include <time.h>
 
 #include "synthetic-spmd.h"
-#include "ss-timing.h"
 #include "ss-migration.h"
+
+// A global variable containing the number of work units to send to each
+// neighbour during the next migration.
+int next_movement[MAX_PEER_COUNT];
 
 int main(int argc, char **argv)
 {
@@ -34,7 +37,7 @@ int main(int argc, char **argv)
 	MPI_Finalize();
 
 	return 0;
-}
+} // main()
 
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array)
 {
@@ -51,37 +54,45 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 		t1 = getCurrentTime();
 		barrier(config);
 		t2 = getCurrentTime();
-//		printf("[%3d] iter: %d, barrier: %ld us\n", config->mpi_rank, i, t2-t1);
+		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeBarrier);
+		//printf("[%3d] iter: %d, barrier: %ld us\n", config->mpi_rank, i, t2-t1);
 		
 		// Work
 		t1 = getCurrentTime();
 		work(work_array, matrices);
 		t2 = getCurrentTime();
-//		printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
+		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeWork);
+		//printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
 
 		// Communication
 		t1 = t2;
 		communication(peers, config->comm_weight, config->mpi_rank);
 		t2 = getCurrentTime();
-//		printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
-	
-		if (i % 4 == 3)  {
+		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeCommunication);
+		//printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
+
+		// Migration
+		if ((config->migration_freq > 0) &&
+			(i % config->migration_freq  == config->migration_freq - 1))  {
+			t1 = t2;
 			for (j = 0; j < MAX_PEER_COUNT; j++)
-				movement[j] = 0;
+				movement[j] = next_movement[j];
 			if (config->mpi_rank == 0)
 				movement[1] = 2;
 			else if (config->mpi_rank == 1)
 				movement[3] = -2;
 
 			workUnitMigration(peers, work_array, movement);
-			printf("[%3d] iter: %d, post migration: ", config->mpi_rank, i);
-			workArrayPrintUnits(work_array);
+			t2 = getCurrentTime();
+			outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeMigration);
+			//printf("[%3d] iter: %d, migration: %ld", config->mpi_rank, i, t2-t1);
+			//workArrayPrintUnits(work_array);
 		}
 	}
 
 
 	workMatricesRelease(&matrices);
-}
+} // applicationLoop()
 
 void barrier(SSAppConfig *config)
 {
@@ -95,7 +106,6 @@ void work(SSWorkArray *work_array, SSWorkMatrices matrices)
 {
 	unsigned int	u, w;
 
-
 	for (u = 0; u < work_array->length; u++)  {
 		for (w = 0; w < work_array->elements[u].weight; w++)  {
 			workMatricesMultiply(matrices);
@@ -108,6 +118,11 @@ void communication(SSPeers *peers, unsigned int comm_weight, int rank)
 {
 	peerCommunication(peers, comm_weight, rank);
 } // communication ()
+
+void outputElapsedTime(unsigned int iteration, int mpi_rank, SSTInterval elapsed, char *action)
+{
+	fprintf(stdout, "%u\t%d\t%ld\t%s\n", iteration, mpi_rank, elapsed, action);
+} // outputElapsedTime()
 
 SSAppConfig *initAppConfig(int argc, char **argv)
 {
@@ -126,14 +141,17 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->wunit_weight[0] = 0;
 	config->wunit_weight[1] = 1;
 	config->comm_weight = 0;
-	config->iterations = 12;
+	config->iterations = 10;
+	config->migration_freq = 0;
 	config->verbose = 0;
+
+	for (i = 0; i < MAX_PEER_COUNT; i++)
+		next_movement[i] = 0;
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &(config->mpi_rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(config->mpi_size));
 
 	
-
 	for (i = 1; i < argc; i++)  {
 		if (strcmp(argv[i], "-u") == 0)  {
 			if (argc <= i+1)
@@ -170,8 +188,21 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 				return displayUsageAndReleaseConfig(config);
 			config->comm_weight = atoi(argv[++i]);
 		}
+		else if (strcmp(argv[i], "-i") == 0)  {
+			if (argc <= i+1)
+				return displayUsageAndReleaseConfig(config);
+			config->iterations = atoi(argv[++i]);
+		}
+		else if (strcmp(argv[i], "-m") == 0)  {
+			if (argc <= i+1)
+				return displayUsageAndReleaseConfig(config);
+			config->migration_freq = atoi(argv[++i]);
+		}
 		else if (strcmp(argv[i], "-v") == 0)  {
 			config->verbose = 1;
+		}
+		else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)  {
+			displayUsageAndReleaseConfig(config);
 		}
 	}
 

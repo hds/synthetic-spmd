@@ -4,11 +4,14 @@
 
 #include "ss-work.h"
 #include "ss-communication.h"
+#include "ss-timing.h"
 
 #define	WORK_MATRIX_SIZE	(100)
 
-// Define time intervals as longs.
-//typedef t_interval	long
+#define	SSBadgeBarrier		"Barrier"
+#define	SSBadgeWork		"Work"
+#define	SSBadgeCommunication	"Communication"
+#define	SSBadgeMigration	"Migration"
 
 typedef struct __SSAppConfig  {
 	int		mpi_rank;
@@ -18,6 +21,7 @@ typedef struct __SSAppConfig  {
 	unsigned int	wunit_weight[2];
 	unsigned int	comm_weight;
 	unsigned int	iterations;
+	unsigned int	migration_freq;
 	unsigned int	verbose;
 } SSAppConfig;
 
@@ -32,5 +36,7 @@ void barrier(SSAppConfig *config);
 void work(SSWorkArray *work_array, SSWorkMatrices matrices);
 void communication(SSPeers *peers, unsigned int comm_weight, int rank);
 
+// **** Reporting ****
+void outputElapsedTime(unsigned int iteration, int mpi_rank, SSTInterval elapsed, char *action);
 
 #endif
