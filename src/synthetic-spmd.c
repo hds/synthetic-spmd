@@ -7,9 +7,12 @@
 #include "synthetic-spmd.h"
 #include "ss-migration.h"
 
-// A global variable containing the number of work units to send to each
+// Global variables containing the number of work units to send to each
 // neighbour during the next migration.
-int next_movement[MAX_PEER_COUNT];
+int next_movement_north;
+int next_movement_east;
+int next_movement_south;
+int next_movement_west;
 
 int main(int argc, char **argv)
 {
@@ -41,7 +44,7 @@ int main(int argc, char **argv)
 
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array)
 {
-	unsigned int	i, j;
+	unsigned int	i;
 	SSTInterval	t1, t2;
 	SSWorkMatrices	matrices;
 	int		movement[MAX_PEER_COUNT];
@@ -52,21 +55,21 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 		
 		// Barrier
 		t1 = getCurrentTime();
-		barrier(config);
+		barrier(i, config);
 		t2 = getCurrentTime();
 		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeBarrier);
 		//printf("[%3d] iter: %d, barrier: %ld us\n", config->mpi_rank, i, t2-t1);
 		
 		// Work
 		t1 = getCurrentTime();
-		work(work_array, matrices);
+		work(i, work_array, work_array->length, matrices);
 		t2 = getCurrentTime();
 		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeWork);
 		//printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
 
 		// Communication
 		t1 = t2;
-		communication(peers, config->comm_weight, config->mpi_rank);
+		communication(i, peers, config->comm_weight, config->mpi_rank);
 		t2 = getCurrentTime();
 		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeCommunication);
 		//printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
@@ -75,8 +78,10 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 		if ((config->migration_freq > 0) &&
 			(i % config->migration_freq  == config->migration_freq - 1))  {
 			t1 = t2;
-			for (j = 0; j < MAX_PEER_COUNT; j++)
-				movement[j] = next_movement[j];
+			movement[0] = next_movement_north;
+			movement[1] = next_movement_east;
+			movement[2] = next_movement_south;
+			movement[3] = next_movement_west;
 			if (config->mpi_rank == 0)
 				movement[1] = 2;
 			else if (config->mpi_rank == 1)
@@ -94,7 +99,7 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 	workMatricesRelease(&matrices);
 } // applicationLoop()
 
-void barrier(SSAppConfig *config)
+void barrier(int iteration, SSAppConfig *config)
 {
 	// This may need to be more complex later on, but for now it's
 	// just an MPI_Barrier call.
@@ -102,7 +107,7 @@ void barrier(SSAppConfig *config)
 	MPI_Barrier(MPI_COMM_WORLD);
 } // barrier()
 
-void work(SSWorkArray *work_array, SSWorkMatrices matrices)
+void work(int iteration, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices)
 {
 	unsigned int	u, w;
 
@@ -114,7 +119,7 @@ void work(SSWorkArray *work_array, SSWorkMatrices matrices)
 
 } // work()
 
-void communication(SSPeers *peers, unsigned int comm_weight, int rank)
+void communication(int interation, SSPeers *peers, unsigned int comm_weight, int rank)
 {
 	peerCommunication(peers, comm_weight, rank);
 } // communication ()
@@ -145,8 +150,10 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->migration_freq = 0;
 	config->verbose = 0;
 
-	for (i = 0; i < MAX_PEER_COUNT; i++)
-		next_movement[i] = 0;
+	next_movement_north = 0;
+	next_movement_east = 0;
+	next_movement_south = 0;
+	next_movement_west = 0;
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &(config->mpi_rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(config->mpi_size));

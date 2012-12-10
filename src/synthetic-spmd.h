@@ -32,9 +32,9 @@ void releaseAppConfig(SSAppConfig *config);
 
 // **** Application Run Loop ****
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array);
-void barrier(SSAppConfig *config);
-void work(SSWorkArray *work_array, SSWorkMatrices matrices);
-void communication(SSPeers *peers, unsigned int comm_weight, int rank);
+void barrier(int iteration, SSAppConfig *config);
+void work(int iteration, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices);
+void communication(int iteration, SSPeers *peers, unsigned int comm_weight, int rank);
 
 // **** Reporting ****
 void outputElapsedTime(unsigned int iteration, int mpi_rank, SSTInterval elapsed, char *action);
