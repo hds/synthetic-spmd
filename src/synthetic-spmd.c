@@ -14,13 +14,15 @@ int next_movement_east;
 int next_movement_south;
 int next_movement_west;
 
+int work_iteration;
+
 int main(int argc, char **argv)
 {
 	SSAppConfig	*config;
 	SSPeers		*peers;
 	SSWorkArray	*work_array;
 
-	MPI_Init(&argc,&argv);
+	MPI_Init(&argc, &argv);
 
 	config = initAppConfig(argc, argv);
 	if (config)  {
@@ -110,6 +112,7 @@ void barrier(int iteration, SSAppConfig *config)
 void work(int iteration, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices)
 {
 	unsigned int	u, w;
+	work_iteration = iteration;
 
 	for (u = 0; u < work_array->length; u++)  {
 		for (w = 0; w < work_array->elements[u].weight; w++)  {
