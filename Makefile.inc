@@ -4,7 +4,7 @@
 #
 
 
-MPICC = mpicc
+MPICC = mpiCC
 MKDIR = mkdir -p
 
 PRJDIR = $(dir $(lastword $(MAKEFILE_LIST)))

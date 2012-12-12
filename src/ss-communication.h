@@ -5,7 +5,7 @@
 #define	MAX_PEER_COUNT	(4)
 #define SPMD_GRID_DIMS	(2)
 
-#define	GRID_WRAP	(1)
+#define	GRID_WRAP	(0)
 #define	FORCE_GRID_WRAP	(0)
 
 // **** Peers (Neighbours) ****
@@ -17,6 +17,7 @@ typedef struct __SSPeers  {
 SSPeers *peersInit(unsigned int *dims, int rank);
 void peersRelease(SSPeers *);
 
+unsigned int peersRealPeerCount(SSPeers *peers);
 void peerCommunication(SSPeers *peers, unsigned int comm_weight, int rank);
 
 // **** Communication Data ****

@@ -7,6 +7,6 @@
 
 #define MAX_MIGRATION	(50)
 
-void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement);
+void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement, int iteration);
 
 #endif

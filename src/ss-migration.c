@@ -1,14 +1,14 @@
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <mpi.h>
 
 #include "ss-migration.h"
 #include "ss-standard.h"
 
 // **** Migration ****
 
-void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement)
+void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement, int iteration)
 {
 	unsigned int 	i, count;
 	SSWorkArray	*incoming[MAX_PEER_COUNT];
@@ -18,12 +18,24 @@ void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement)
 	SSWorkUnit	dummy_work_unit;
 	SSWorkUnit	*outgoing_work;
 	int		recv_count, send_count;
+	
+	int		mpi_rank;
+	char		prefix[40];
+
+	MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+
+	//sprintf(prefix, "%d\t%d\tPre migration: ", iteration, mpi_rank);
+	//workArrayPrintUnitWithPrefix(work_array, prefix);
 
 	for (i = 0; i < MAX_PEER_COUNT; i++)  {
 		if (movement[i] > 0)  { // Sending
 			count = (unsigned int)movement[i];
 			outgoing[i] = workArrayPopItems(work_array, &count);
 			movement[i] = (int)count;
+
+			//sprintf(prefix, "%d\t%d\tSend to %d: ", iteration, mpi_rank, peers->ids[i]);
+			//workArrayPrintUnitWithPrefix(outgoing[i], prefix);
+
 		}
 		else  {
 			outgoing[i] = NULL;
@@ -66,9 +78,15 @@ void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement)
 		MPI_Get_count(&status, MPI_UNSIGNED_CHAR, &recv_count);
 		if (recv_count > 0 && recv_count % sizeof(SSWorkUnit) == 0)  {
 			incoming[i]->length = recv_count / sizeof(SSWorkUnit);
+			//sprintf(prefix, "%d\t%d\tReceive from %d: ", iteration, mpi_rank, peers->ids[i]);
+			workArrayPrintUnitWithPrefix(incoming[i], prefix);
+
 			workArrayPushItems(work_array, incoming[i]);
 		}
 	}
+
+	//sprintf(prefix, "%d\t%d\tPost migration: ", iteration, mpi_rank);
+	//workArrayPrintUnitWithPrefix(work_array, prefix);
 
 	for (i = 0; i < MAX_PEER_COUNT; i++)  {
 		workArrayRelease(outgoing[i]);

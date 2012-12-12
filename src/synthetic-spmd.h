@@ -33,7 +33,7 @@ void releaseAppConfig(SSAppConfig *config);
 // **** Application Run Loop ****
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array);
 void barrier(int iteration, SSAppConfig *config);
-void work(int iteration, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices);
+void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices);
 void communication(int iteration, SSPeers *peers, unsigned int comm_weight, int rank);
 
 // **** Reporting ****

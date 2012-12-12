@@ -29,7 +29,7 @@ Usage
         -i <iterations>
             Number of iterations the application will run for. Default is 10.
 
-        -m <migration_freq>
+        -m <migration_period>
             Frequency with which a migration (for load balancing) will occur.
             Default is 0 (no migration).
 

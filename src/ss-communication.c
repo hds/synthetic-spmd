@@ -1,7 +1,7 @@
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <mpi.h>
 
 #include "ss-communication.h"
 #include "ss-standard.h"
@@ -73,6 +73,19 @@ void peersRelease(SSPeers *peers)
 		free(peers);
 	peers = NULL;
 } // peersRelease()
+
+unsigned int peersRealPeerCount(SSPeers *peers)
+{
+	unsigned int i, realPeerCount;
+
+	realPeerCount = 0;
+	for (i = 0; i < peers->n; i++)  {
+		if (peers->ids[i] >= 0)
+			realPeerCount += 1;
+	}
+
+	return realPeerCount;
+} // peersRealPeerCount()
 
 void peerCommunication(SSPeers *peers, unsigned int comm_weight, int rank)
 {

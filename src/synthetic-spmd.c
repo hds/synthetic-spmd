@@ -1,7 +1,7 @@
+#include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <mpi.h>
 #include <time.h>
 
 #include "synthetic-spmd.h"
@@ -9,42 +9,24 @@
 
 // Global variables containing the number of work units to send to each
 // neighbour during the next migration.
-int next_movement_north;
-int next_movement_east;
-int next_movement_south;
-int next_movement_west;
+static int next_movement_north;
+static int next_movement_east;
+static int next_movement_south;
+static int next_movement_west;
 
-int main(int argc, char **argv)
-{
-	SSAppConfig	*config;
-	SSPeers		*peers;
-	SSWorkArray	*work_array;
+static int work_iteration;
 
-	MPI_Init(&argc,&argv);
-
-	config = initAppConfig(argc, argv);
-	if (config)  {
-
-		work_array = workArrayInitWithLength(config->wunits);
-		workArrayFillUnits(work_array, config->wunit_weight[0], config->wunit_weight[1]);
-		//workArrayPrintUnits(work_array);
+int TEST=2;
 
 
-		peers = peersInit(config->dims, config->mpi_rank);
-
-		applicationLoop(config, peers, work_array);
-
-		workArrayRelease(work_array);
-	}
-	    
-	MPI_Finalize();
-
-	return 0;
-} // main()
+void Insert_DMLib(){
+	fprintf(stdout, "Insert_DMLib\n");
+	int a = 2;
+}
 
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array)
 {
-	unsigned int	i;
+	unsigned int	i, j;
 	SSTInterval	t1, t2;
 	SSWorkMatrices	matrices;
 	int		movement[MAX_PEER_COUNT];
@@ -62,7 +44,8 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 		
 		// Work
 		t1 = getCurrentTime();
-		work(i, work_array, work_array->length, matrices);
+		int array_length = work_array->length;
+		work(i, config->mpi_rank, work_array, array_length, matrices);
 		t2 = getCurrentTime();
 		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeWork);
 		//printf("[%3d] iter: %d, work: %ld us\n", config->mpi_rank, i, t2-t1);
@@ -82,14 +65,18 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 			movement[1] = next_movement_east;
 			movement[2] = next_movement_south;
 			movement[3] = next_movement_west;
-			if (config->mpi_rank == 0)
-				movement[1] = 2;
-			else if (config->mpi_rank == 1)
-				movement[3] = -2;
+			
+			printf("%d\t%d\t[%d, %d, %d, %d]\n", i, config->mpi_rank, movement[0], movement[1], movement[2], movement[3]);
 
-			workUnitMigration(peers, work_array, movement);
+			workUnitMigration(peers, work_array, movement, i);
 			t2 = getCurrentTime();
 			outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeMigration);
+			printf("%d\t%d\tUnits of Work: %d -> %d\n", i, config->mpi_rank, array_length, work_array->length);
+
+			next_movement_north = 0;
+			next_movement_east = 0;
+			next_movement_south = 0;
+			next_movement_west = 0;
 			//printf("[%3d] iter: %d, migration: %ld", config->mpi_rank, i, t2-t1);
 			//workArrayPrintUnits(work_array);
 		}
@@ -107,15 +94,25 @@ void barrier(int iteration, SSAppConfig *config)
 	MPI_Barrier(MPI_COMM_WORLD);
 } // barrier()
 
-void work(int iteration, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices)
+
+void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices)
 {
 	unsigned int	u, w;
+	char		prefix[40];
+	//printf("%d\t%d\tBefore assign work_iteration\n", iteration, mpi_rank);
+	work_iteration = iteration;
 
+	sprintf(prefix, "%d\t%d\tWork to do ", iteration, mpi_rank);
+	workArrayPrintUnitWithPrefix(work_array, prefix);
+	
+	//printf("%d\t%d\tBefore outer loop\n", iteration, mpi_rank);
 	for (u = 0; u < work_array->length; u++)  {
 		for (w = 0; w < work_array->elements[u].weight; w++)  {
 			workMatricesMultiply(matrices);
 		}
 	}
+
+	//printf("%d\t%d\tEnd of work()\n", iteration, mpi_rank);
 
 } // work()
 
@@ -142,12 +139,12 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	// Default values
 	config->dims[0] = 0;
 	config->dims[1] = 0;
-	config->wunits = 0;
-	config->wunit_weight[0] = 0;
-	config->wunit_weight[1] = 1;
-	config->comm_weight = 0;
+	config->wunits = 20;
+	config->wunit_weight[0] = 40;
+	config->wunit_weight[1] = 40;
+	config->comm_weight = 1;
 	config->iterations = 10;
-	config->migration_freq = 0;
+	config->migration_freq = 1;
 	config->verbose = 0;
 
 	next_movement_north = 0;
@@ -213,6 +210,8 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 		}
 	}
 
+	fprintf(stdout, "Soy la sintetica al final de initAppConfig\n");
+
 	return config;
 } // initAppConfig()
 
@@ -231,4 +230,48 @@ void releaseAppConfig(SSAppConfig *config)
 	if (config != NULL)
 		free(config);
 } // releaseAppConfig()
+
+int main(int argc, char **argv)
+{
+	fprintf(stdout, "Soy la sintetica!!! \n");
+	SSAppConfig	*config;
+	SSPeers		*peers;
+	SSWorkArray	*work_array;
+
+	MPI_Init(&argc, &argv);
+	fprintf(stdout, "argv[0]=%s\n", argv[0]);
+	fprintf(stdout, "argv[1]=%s\n", argv[1]);
+	fprintf(stdout, "argv[2]=%s\n", argv[2]);
+	config = initAppConfig(argc, argv);
+	Insert_DMLib();
+	int a = TEST;
+	if (config)  {
+//		fprintf(stdout, "Soy la sintetica dentro de if(config)\n");
+		peers = peersInit(config->dims, config->mpi_rank);
+		if (peersRealPeerCount(peers) < 4)  {
+			// Add ~20% extra work units if we're on a border.
+			config->wunits += (config->wunits / 5);
+		}
+
+		work_array = workArrayInitWithLength(config->wunits);
+//		fprintf(stdout, "Soy la sintetica despues de workArrayInit \n");
+		workArrayFillUnits(work_array, config->wunit_weight[0], config->wunit_weight[1]);
+		//workArrayPrintUnits(work_array);
+//		fprintf(stdout, "Soy la sintetica despues de workArrayFill \n");
+//		fprintf(stdout, "Valor de TEST=%d\n", TEST);
+
+
+
+//		fprintf(stdout, "Soy la sintetica despues de peersInit \n");
+		applicationLoop(config, peers, work_array);
+		fprintf(stdout, "Soy la sintetica despues de applicationLoop \n");
+		workArrayRelease(work_array);
+		fprintf(stdout, "Soy la sintetica despues de workArrayRelease \n");
+	}
+	    
+	MPI_Finalize();
+
+	return 0;
+} // main()
+
 

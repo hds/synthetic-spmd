@@ -62,6 +62,21 @@ void workArrayFillUnits(SSWorkArray *array, unsigned int min, unsigned int max)
 	}
 } // workArrayFillUnits()
 
+void workArrayPrintUnitWithPrefix(SSWorkArray *array, char *prefix)
+{
+	unsigned int	i;
+	char		array_print[200] = "\0";
+
+	strcpy(array_print, "[ ");
+	for (i = 0; i < array->length; i++)  {
+		
+		sprintf(&(array_print[strlen(array_print)]),"%s%d", i ? ", " : "", array->elements[i].weight);
+	}
+	strcat(array_print, "]");
+
+	printf("%s%s\n", prefix, array_print);
+} // workArrayPrintUnitWithPrefix()
+
 void workArrayPrintUnits(SSWorkArray *array)
 {
 	unsigned int	i;
@@ -84,7 +99,7 @@ void workArrayPushItems(SSWorkArray *array, SSWorkArray *new_items)
 		void		*new_elements;
 		new_max = maxForArrayLength(offset + new_items->length);
 
-		if ((new_elements = realloc(array->elements, new_max)) == NULL)  {
+		if ((new_elements = realloc(array->elements, new_max*sizeof(SSWorkArray))) == NULL)  {
 			fprintf(stderr, "Could not enlarge SSWorkArray elements space. This is BAD.\n");
 			return;
 		}
@@ -92,6 +107,7 @@ void workArrayPushItems(SSWorkArray *array, SSWorkArray *new_items)
 		array->elements = (SSWorkUnit *)new_elements;
 		array->max = new_max;
 	}
+
 
 	for (i = 0; i < new_items->length; i++)  {
 		array->elements[offset+i] = new_items->elements[i];

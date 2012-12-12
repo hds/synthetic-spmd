@@ -23,6 +23,7 @@ SSWorkArray *workArrayInitWithLength(unsigned int length);
 void workArrayRelease(SSWorkArray *array);
 
 void workArrayFillUnits(SSWorkArray *array, unsigned int min, unsigned int max);
+void workArrayPrintUnitWithPrefix(SSWorkArray *array, char *prefix);
 void workArrayPrintUnits(SSWorkArray *array);
 void workArrayPushItems(SSWorkArray *array, SSWorkArray *new_items);
 SSWorkArray *workArrayPopItems(SSWorkArray *array, unsigned int *count);
