@@ -9,7 +9,7 @@ include ../Makefile.inc
 
 INCLUDES = 
 LIBS = 
-CCFLAGS = -g -Wall
+CCFLAGS = -g -Wall -O0
 
 TARGETS = $(BINDIR)/synthetic-spmd
 OBJS = $(OBJDIR)/synthetic-spmd.o $(OBJDIR)/ss-timing.o $(OBJDIR)/ss-work.o \

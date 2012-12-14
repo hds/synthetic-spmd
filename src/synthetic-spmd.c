@@ -98,6 +98,8 @@ void barrier(int iteration, SSAppConfig *config)
 void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices)
 {
 	unsigned int	u, w;
+	unsigned int	total_work;
+	long double	ms;
 	char		prefix[40];
 	//printf("%d\t%d\tBefore assign work_iteration\n", iteration, mpi_rank);
 	work_iteration = iteration;
@@ -105,12 +107,20 @@ void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_l
 	sprintf(prefix, "%d\t%d\tWork to do ", iteration, mpi_rank);
 	workArrayPrintUnitWithPrefix(work_array, prefix);
 	
+	total_work = 0;
 	//printf("%d\t%d\tBefore outer loop\n", iteration, mpi_rank);
 	for (u = 0; u < work_array->length; u++)  {
-		for (w = 0; w < work_array->elements[u].weight; w++)  {
-			workMatricesMultiply(matrices);
-		}
+		total_work += work_array->elements[u].weight;
+		//ms = 0.15 * (long double)work_array->elements[u].weight;
+//		for (w = 0; w < work_array->elements[u].weight; w++)  {
+//			workMatricesMultiply(matrices);
+//		}
 	}
+	
+	//ms = 0.50 * (long double)total_work;
+	ms = (long double)total_work;
+	printf("%d\t%d\tGoing to work for %.2Lf ms (%u)\n", iteration, mpi_rank, ms, total_work);
+	workBusy(ms);
 
 	//printf("%d\t%d\tEnd of work()\n", iteration, mpi_rank);
 
@@ -250,7 +260,7 @@ int main(int argc, char **argv)
 		peers = peersInit(config->dims, config->mpi_rank);
 		if (peersRealPeerCount(peers) < 4)  {
 			// Add ~20% extra work units if we're on a border.
-			config->wunits += (config->wunits / 5);
+			config->wunits += (config->wunits / 2);
 		}
 
 		work_array = workArrayInitWithLength(config->wunits);

@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "ss-work.h"
+#include "ss-timing.h"
 
 unsigned int maxForArrayLength(unsigned int length)
 {
@@ -227,4 +228,21 @@ void workMatricesRelease(SSWorkMatrices *matrices)
 	matrices->m2 = NULL;
 } // workMatricesRelease()
 
+// **** Time based work ****
+
+int workBusy(long double milisec)
+{
+	SSTInterval	t1, t2;
+	int		counter = 0;
+	double		k = 3.1415;
+
+	t1 = getCurrentTime();
+	do  {
+		++counter;
+		k = k * counter + counter / 2.7;
+		t2 = getCurrentTime();
+	} while ((t2-t1)<(milisec*1000));
+
+	return 0;
+}
 

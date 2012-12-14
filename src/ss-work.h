@@ -41,6 +41,9 @@ void workMatricesMultiply(SSWorkMatrices matrices);
 void workMatricesPrint(SSWorkMatrices matrices);
 void workMatricesRelease(SSWorkMatrices *matrices);
 
+// **** Time based work ****
+
+int workBusy(long double milisec);
 
 
 #endif
