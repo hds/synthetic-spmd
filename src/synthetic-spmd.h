@@ -35,6 +35,7 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 void barrier(int iteration, SSAppConfig *config);
 void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices);
 void communication(int iteration, SSPeers *peers, unsigned int comm_weight, int rank);
+void migration(unsigned int iteration, unsigned int migration_freq, SSPeers *peers, SSWorkArray *work_array, int *movement);
 
 // **** Reporting ****
 void outputElapsedTime(unsigned int iteration, int mpi_rank, SSTInterval elapsed, char *action);

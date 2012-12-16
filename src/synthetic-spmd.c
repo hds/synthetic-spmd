@@ -15,6 +15,10 @@ static int next_movement_south;
 static int next_movement_west;
 
 static int work_iteration;
+static int migrate_total;
+
+static int ordered_by;
+static int order_iter;
 
 int TEST=2;
 
@@ -32,6 +36,8 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 	int		movement[MAX_PEER_COUNT];
 	
 	matrices = workMatricesInit(WORK_MATRIX_SIZE);
+	ordered_by = -1;
+	order_iter = -1;
 
 	for (i = 0; i < config->iterations; i++)  {
 		
@@ -57,29 +63,31 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeCommunication);
 		//printf("[%3d] iter: %d, comm: %ld us\n", config->mpi_rank, i, t2-t1);
 
+		
 		// Migration
-		if ((config->migration_freq > 0) &&
+		if ((config->migration_freq > 0) && 
 			(i % config->migration_freq  == config->migration_freq - 1))  {
-			t1 = t2;
+			
+			int	l_ordered_by, l_order_iter;
+			l_ordered_by = ordered_by;
+			l_order_iter = order_iter;
 			movement[0] = next_movement_north;
 			movement[1] = next_movement_east;
 			movement[2] = next_movement_south;
 			movement[3] = next_movement_west;
-			
-			printf("%d\t%d\t[%d, %d, %d, %d]\n", i, config->mpi_rank, movement[0], movement[1], movement[2], movement[3]);
 
-			workUnitMigration(peers, work_array, movement, i);
+			printf("%d\t%d\tPre-migrate: oiter: %d (Filt: %d) --> [ %d, %d, %d, %d ]\n", i, config->mpi_rank, l_order_iter, l_ordered_by, movement[0], movement[1], movement[2], movement[3]);
+			t1 = t2;
+			migration(i, config->migration_freq, peers, work_array, movement);
 			t2 = getCurrentTime();
 			outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeMigration);
 			printf("%d\t%d\tUnits of Work: %d -> %d\n", i, config->mpi_rank, array_length, work_array->length);
-
-			next_movement_north = 0;
-			next_movement_east = 0;
-			next_movement_south = 0;
-			next_movement_west = 0;
-			//printf("[%3d] iter: %d, migration: %ld", config->mpi_rank, i, t2-t1);
-			//workArrayPrintUnits(work_array);
 		}
+//		else if (i == 0)  {
+//			printf("%d\t%d\tUnits of Work: %d -> %d\n", i, config->mpi_rank, array_length, work_array->length);
+//		}
+
+
 	}
 
 
@@ -131,6 +139,29 @@ void communication(int interation, SSPeers *peers, unsigned int comm_weight, int
 	peerCommunication(peers, comm_weight, rank);
 } // communication ()
 
+void migration(unsigned int iteration, unsigned int migration_freq, SSPeers *peers, SSWorkArray *work_array, int *movement)
+{
+
+	movement[0] = next_movement_north;
+	movement[1] = next_movement_east;
+	movement[2] = next_movement_south;
+	movement[3] = next_movement_west;
+	
+	//printf("%d\t%d\t[%d, %d, %d, %d]\n", i, config->mpi_rank, movement[0], movement[1], movement[2], movement[3]);
+
+	workUnitMigration(peers, work_array, movement, iteration);
+
+	next_movement_north = 0;
+	next_movement_east = 0;
+	next_movement_south = 0;
+	next_movement_west = 0;
+	ordered_by = -1;
+	order_iter = -1;
+	//printf("[%3d] iter: %d, migration: %ld", config->mpi_rank, i, t2-t1);
+	//workArrayPrintUnits(work_array);
+
+} // migration()
+
 void outputElapsedTime(unsigned int iteration, int mpi_rank, SSTInterval elapsed, char *action)
 {
 	fprintf(stdout, "%u\t%d\t%ld\t%s\n", iteration, mpi_rank, elapsed, action);
@@ -153,8 +184,8 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->wunit_weight[0] = 40;
 	config->wunit_weight[1] = 40;
 	config->comm_weight = 1;
-	config->iterations = 10;
-	config->migration_freq = 1;
+	config->iterations = 16;
+	config->migration_freq = 3;
 	config->verbose = 0;
 
 	next_movement_north = 0;

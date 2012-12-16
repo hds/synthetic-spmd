@@ -79,7 +79,7 @@ void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement, i
 		if (recv_count > 0 && recv_count % sizeof(SSWorkUnit) == 0)  {
 			incoming[i]->length = recv_count / sizeof(SSWorkUnit);
 			//sprintf(prefix, "%d\t%d\tReceive from %d: ", iteration, mpi_rank, peers->ids[i]);
-			workArrayPrintUnitWithPrefix(incoming[i], prefix);
+			//workArrayPrintUnitWithPrefix(incoming[i], prefix);
 
 			workArrayPushItems(work_array, incoming[i]);
 		}
