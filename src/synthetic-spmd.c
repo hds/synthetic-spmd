@@ -164,7 +164,10 @@ void migration(unsigned int iteration, unsigned int migration_freq, SSPeers *pee
 
 void outputElapsedTime(unsigned int iteration, int mpi_rank, SSTInterval elapsed, char *action)
 {
-	fprintf(stdout, "%u\t%d\t%ld\t%s\n", iteration, mpi_rank, elapsed, action);
+	SSTInterval	t1;
+	t1 = getCurrentTime();	
+	fprintf(stdout, "%ld\t%u\t%d\t%ld\t%s\n", (long int)t1, iteration, mpi_rank, elapsed, action);
+	//fprintf(stdout, "%ld\t%u\t%d\t%ld\t%s\n", getCurrentTime(), iteration, mpi_rank, elapsed, action);
 } // outputElapsedTime()
 
 SSAppConfig *initAppConfig(int argc, char **argv)
