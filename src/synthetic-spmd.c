@@ -108,12 +108,12 @@ void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_l
 	unsigned int	u, w;
 	unsigned int	total_work;
 	long double	ms;
-	char		prefix[40];
+	//char		prefix[40];
 	//printf("%d\t%d\tBefore assign work_iteration\n", iteration, mpi_rank);
 	work_iteration = iteration;
 
-	sprintf(prefix, "%d\t%d\tWork to do ", iteration, mpi_rank);
-	workArrayPrintUnitWithPrefix(work_array, prefix);
+	fprintf(stdout, "%d\t%d\tWork to do %d\n", iteration, mpi_rank, work_array->length);
+	//workArrayPrintUnitWithPrefix(work_array, prefix);
 	
 	total_work = 0;
 	//printf("%d\t%d\tBefore outer loop\n", iteration, mpi_rank);
@@ -127,7 +127,7 @@ void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_l
 	
 	//ms = 0.50 * (long double)total_work;
 	ms = (long double)total_work;
-	printf("%d\t%d\tGoing to work for %.2Lf ms (%u)\n", iteration, mpi_rank, ms, total_work);
+	//printf("%d\t%d\tGoing to work for %.2Lf ms (%u)\n", iteration, mpi_rank, ms, total_work);
 	workBusy(ms);
 
 	//printf("%d\t%d\tEnd of work()\n", iteration, mpi_rank);
@@ -187,7 +187,7 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->wunit_weight[0] = 40;
 	config->wunit_weight[1] = 40;
 	config->comm_weight = 1;
-	config->iterations = 16;
+	config->iterations = 24;
 	config->migration_freq = 3;
 	config->verbose = 0;
 
@@ -195,6 +195,8 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	next_movement_east = 0;
 	next_movement_south = 0;
 	next_movement_west = 0;
+	ordered_by = -1;
+	order_iter = -1;
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &(config->mpi_rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(config->mpi_size));
@@ -282,7 +284,15 @@ int main(int argc, char **argv)
 	SSPeers		*peers;
 	SSWorkArray	*work_array;
 
+	double start_time, end_time;
+	int rank;
+
 	MPI_Init(&argc, &argv);
+	
+	MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+	MPI_Barrier(MPI_COMM_WORLD);
+	start_time = MPI_Wtime();
+
 	fprintf(stdout, "argv[0]=%s\n", argv[0]);
 	fprintf(stdout, "argv[1]=%s\n", argv[1]);
 	fprintf(stdout, "argv[2]=%s\n", argv[2]);
@@ -292,10 +302,22 @@ int main(int argc, char **argv)
 	if (config)  {
 //		fprintf(stdout, "Soy la sintetica dentro de if(config)\n");
 		peers = peersInit(config->dims, config->mpi_rank);
-		if (peersRealPeerCount(peers) < 4)  {
-			// Add ~20% extra work units if we're on a border.
-			config->wunits += (config->wunits / 2);
-		}
+		/*if (peersRealPeerCount(peers) < 4)  {
+			// Add ~50% extra work units if we're on a border.
+			config->wunits += (config->wunits/2);
+		}*/
+		/*if (config->mpi_rank < config->dims[0]*2)  {
+			// Add ~50% extra work units if we're in the top two rows
+			config->wunits += (config->wunits/2);
+		}*/
+		/*if(config->mpi_rank % config->dims[0] == 0 || config->mpi_rank % config->dims[0] == 1){
+			// Add 50% extra work units if we're the first two columns
+			config->wunits += 4*config->wunits;
+		}*/
+		if(config->mpi_rank < config->dims[0]*2 || config->mpi_rank % config->dims[0] == 0 || config->mpi_rank % config->dims[0] == 1){
+                        // Add 50% extra work units if we're the first two columns and in the top two rows
+                        config->wunits += 3*config->wunits;
+                }
 
 		work_array = workArrayInitWithLength(config->wunits);
 //		fprintf(stdout, "Soy la sintetica despues de workArrayInit \n");
@@ -312,7 +334,11 @@ int main(int argc, char **argv)
 		workArrayRelease(work_array);
 		fprintf(stdout, "Soy la sintetica despues de workArrayRelease \n");
 	}
-	    
+	
+	MPI_Barrier(MPI_COMM_WORLD);
+    	end_time = MPI_Wtime();
+	fprintf(stdout, "Task[%d]. Execution time = %.2f segundos\n", rank, (end_time-start_time));	
+	
 	MPI_Finalize();
 
 	return 0;

@@ -24,17 +24,11 @@ void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement, i
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
-	//sprintf(prefix, "%d\t%d\tPre migration: ", iteration, mpi_rank);
-	//workArrayPrintUnitWithPrefix(work_array, prefix);
-
 	for (i = 0; i < MAX_PEER_COUNT; i++)  {
 		if (movement[i] > 0)  { // Sending
 			count = (unsigned int)movement[i];
 			outgoing[i] = workArrayPopItems(work_array, &count);
 			movement[i] = (int)count;
-
-			//sprintf(prefix, "%d\t%d\tSend to %d: ", iteration, mpi_rank, peers->ids[i]);
-			//workArrayPrintUnitWithPrefix(outgoing[i], prefix);
 
 		}
 		else  {
@@ -64,6 +58,7 @@ void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement, i
 		MPI_Request_free(&req);
 	}
 
+
 	for (i = 0; i < peers->n; i++)  {
 		if (peers->ids[i] < 0)
 			continue;
@@ -74,19 +69,16 @@ void workUnitMigration(SSPeers *peers, SSWorkArray *work_array, int *movement, i
 			 kSSMPITagMigrate,	// tag
 			 MPI_COMM_WORLD,	// communicator
 			 &status);		// status
+		
+		fprintf(stdout, "%d\t%d\tIn workUnitMigration just after MPI_Recv\n", iteration, mpi_rank);
 
 		MPI_Get_count(&status, MPI_UNSIGNED_CHAR, &recv_count);
 		if (recv_count > 0 && recv_count % sizeof(SSWorkUnit) == 0)  {
 			incoming[i]->length = recv_count / sizeof(SSWorkUnit);
-			//sprintf(prefix, "%d\t%d\tReceive from %d: ", iteration, mpi_rank, peers->ids[i]);
-			//workArrayPrintUnitWithPrefix(incoming[i], prefix);
 
 			workArrayPushItems(work_array, incoming[i]);
 		}
 	}
-
-	//sprintf(prefix, "%d\t%d\tPost migration: ", iteration, mpi_rank);
-	//workArrayPrintUnitWithPrefix(work_array, prefix);
 
 	for (i = 0; i < MAX_PEER_COUNT; i++)  {
 		workArrayRelease(outgoing[i]);
