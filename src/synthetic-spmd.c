@@ -6,6 +6,7 @@
 
 #include "synthetic-spmd.h"
 #include "ss-migration.h"
+#include "ss-disbalance.h"
 
 // Global variables containing the number of work units to send to each
 // neighbour during the next migration.
@@ -24,17 +25,18 @@ int TEST=2;
 
 
 void Insert_DMLib(){
+	int a;
 	fprintf(stdout, "Insert_DMLib\n");
-	int a = 2;
+	a = 2;
 }
 
-void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array)
+void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array, SSDisbalanceOp *disbalance_op)
 {
-	unsigned int	i, j;
+	unsigned int	i;
 	SSTInterval	t1, t2;
 	SSWorkMatrices	matrices;
 	int		movement[MAX_PEER_COUNT];
-	
+
 	matrices = workMatricesInit(WORK_MATRIX_SIZE);
 	ordered_by = -1;
 	order_iter = -1;
@@ -105,7 +107,7 @@ void barrier(int iteration, SSAppConfig *config)
 
 void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices)
 {
-	unsigned int	u, w;
+	unsigned int	u;
 	unsigned int	total_work;
 	long double	ms;
 	//char		prefix[40];
@@ -189,6 +191,7 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->comm_weight = 1;
 	config->iterations = 24;
 	config->migration_freq = 3;
+	config->disbalance_file = NULL;
 	config->verbose = 0;
 
 	next_movement_north = 0;
@@ -201,7 +204,6 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &(config->mpi_rank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(config->mpi_size));
 
-	
 	for (i = 1; i < argc; i++)  {
 		if (strcmp(argv[i], "-u") == 0)  {
 			if (argc <= i+1)
@@ -248,6 +250,12 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 				return displayUsageAndReleaseConfig(config);
 			config->migration_freq = atoi(argv[++i]);
 		}
+		else if (strcmp(argv[i], "-D") == 0)  {
+			if (argc <= i+1)
+				return displayUsageAndReleaseConfig(config);
+			config->disbalance_file = (char *)malloc(sizeof(char)*(strlen(argv[i+1]+1)));
+			strcpy(config->disbalance_file, argv[++i]);
+		}
 		else if (strcmp(argv[i], "-v") == 0)  {
 			config->verbose = 1;
 		}
@@ -256,6 +264,15 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 		}
 	}
 
+	if (config->dims[0] == 0)  {
+		fprintf(stderr, "The dimensions must be specified.\n");
+		return displayUsageAndReleaseConfig(config);
+	}
+
+	// Grid position
+	config->x = config->mpi_rank % config->dims[0]; // dims[0] is the grid width
+	config->y = config->mpi_rank / config->dims[0];
+	
 	fprintf(stdout, "Soy la sintetica al final de initAppConfig\n");
 
 	return config;
@@ -273,6 +290,10 @@ SSAppConfig *displayUsageAndReleaseConfig(SSAppConfig *config)
 
 void releaseAppConfig(SSAppConfig *config)
 {
+	if (config->disbalance_file != NULL)
+		free(config->disbalance_file);
+	config->disbalance_file = NULL;
+
 	if (config != NULL)
 		free(config);
 } // releaseAppConfig()
@@ -283,6 +304,7 @@ int main(int argc, char **argv)
 	SSAppConfig	*config;
 	SSPeers		*peers;
 	SSWorkArray	*work_array;
+	SSDisbalanceOp	*first_op = NULL;
 
 	double start_time, end_time;
 	int rank;
@@ -326,10 +348,12 @@ int main(int argc, char **argv)
 //		fprintf(stdout, "Soy la sintetica despues de workArrayFill \n");
 //		fprintf(stdout, "Valor de TEST=%d\n", TEST);
 
+		if (config->disbalance_file != NULL)
+			first_op = readDisbalanceFile(config->disbalance_file, config->x, config->y);
 
 
 //		fprintf(stdout, "Soy la sintetica despues de peersInit \n");
-		applicationLoop(config, peers, work_array);
+		applicationLoop(config, peers, work_array, first_op);
 		fprintf(stdout, "Soy la sintetica despues de applicationLoop \n");
 		workArrayRelease(work_array);
 		fprintf(stdout, "Soy la sintetica despues de workArrayRelease \n");
