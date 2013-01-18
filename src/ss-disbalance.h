@@ -8,7 +8,12 @@ typedef struct __SSDisbalanceOp  {
 	struct __SSDisbalanceOp	*next;
 } SSDisbalanceOp;
 
-SSDisbalanceOp *readDisbalanceFile(char *filename, unsigned int x, unsigned int y);
-SSDisbalanceOp *readDisbalanceLine(char *line, unsigned int x, unsigned int y);
+SSDisbalanceOp *readDisbalanceFile(char *filename, unsigned int x, unsigned int y, unsigned int width, unsigned int height);
+SSDisbalanceOp *readDisbalanceLine(char *line, unsigned int x, unsigned int y, unsigned int width, unsigned int height);
+int deltaForDisbalanceLine(char **args, unsigned int len, unsigned int x, unsigned int y, unsigned int width, unsigned int height);
+
+SSDisbalanceOp *disbalanceOpNew();
+void disbalanceOpRelease(SSDisbalanceOp *op);
+
 
 #endif

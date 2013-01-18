@@ -26,8 +26,8 @@ int TEST=2;
 
 void Insert_DMLib(){
 	int a;
-	fprintf(stdout, "Insert_DMLib\n");
 	a = 2;
+	fprintf(stdout, "Insert_DMLib\n");
 }
 
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array, SSDisbalanceOp *disbalance_op)
@@ -189,8 +189,8 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->wunit_weight[0] = 40;
 	config->wunit_weight[1] = 40;
 	config->comm_weight = 1;
-	config->iterations = 24;
-	config->migration_freq = 3;
+	config->iterations = 50;
+	config->migration_freq = 2;
 	config->disbalance_file = NULL;
 	config->verbose = 0;
 
@@ -319,6 +319,7 @@ int main(int argc, char **argv)
 	fprintf(stdout, "argv[1]=%s\n", argv[1]);
 	fprintf(stdout, "argv[2]=%s\n", argv[2]);
 	config = initAppConfig(argc, argv);
+	//fprintf(stderr, "Sintetica[%d]\n", rank);
 	Insert_DMLib();
 	int a = TEST;
 	if (config)  {
@@ -349,8 +350,12 @@ int main(int argc, char **argv)
 //		fprintf(stdout, "Valor de TEST=%d\n", TEST);
 
 		if (config->disbalance_file != NULL)
-			first_op = readDisbalanceFile(config->disbalance_file, config->x, config->y);
+			first_op = readDisbalanceFile(config->disbalance_file, config->x, config->y, config->dims[0], config->dims[1]);
 
+		while (first_op != NULL)  {
+			fprintf(stderr, "main(): App[%d]: D: %d, iter: %d\n", config->mpi_rank, first_op->work_unit_delta, first_op->iteration);
+			first_op = first_op->next;
+		}
 
 //		fprintf(stdout, "Soy la sintetica despues de peersInit \n");
 		applicationLoop(config, peers, work_array, first_op);
