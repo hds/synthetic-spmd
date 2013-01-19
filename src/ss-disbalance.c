@@ -35,7 +35,6 @@ SSDisbalanceOp *readDisbalanceFile(char *filename, unsigned int x, unsigned int 
 			last = current;
 		}
 		else  {
-			fprintf(stderr, "%d -> %d\n", last->iteration, current->iteration);
 			if (last->iteration <= current->iteration)  {
 				last->next = current;
 				last = current;
@@ -67,7 +66,7 @@ SSDisbalanceOp *readDisbalanceLine(char *line, unsigned int x, unsigned int y, u
 			if (i >= MAX_ARGS)
 				break;
 
-			printf("%d: args[%d] = &line[%d]: %s\n", y*width+x, i, s, &line[s]);
+			//printf("%d: args[%d] = &line[%d]: %s\n", y*width+x, i, s, &line[s]);
 			args[i] = &line[s];
 			i++;
 		}
@@ -83,7 +82,7 @@ SSDisbalanceOp *readDisbalanceLine(char *line, unsigned int x, unsigned int y, u
 	delta = deltaForDisbalanceLine(args, len, x, y, width, height);
 
 	if (delta > 0)  {
-		if ((op = disbalanceOpNew()) == NULL)  {
+		if ((op = disbalanceOpInit()) == NULL)  {
 			fprintf(stderr, "Error allocating memory for disbalance operation line: %s\n", line);
 			return NULL;
 		}
@@ -95,7 +94,7 @@ SSDisbalanceOp *readDisbalanceLine(char *line, unsigned int x, unsigned int y, u
 	return op;
 } // readDisbalanceLine()
 
-SSDisbalanceOp *disbalanceOpNew()
+SSDisbalanceOp *disbalanceOpInit()
 {
 	SSDisbalanceOp	*op;
 
@@ -108,7 +107,7 @@ SSDisbalanceOp *disbalanceOpNew()
 	op->next = NULL;
 
 	return op;
-} // disbalanceOpNew()
+} // disbalanceOpInit()
 
 void disbalanceOpRelease(SSDisbalanceOp *op)
 {
@@ -250,3 +249,35 @@ int deltaForDisbalanceLine(char **args, unsigned int len, unsigned int x, unsign
 
 	return delta;
 } // deltaForDisbalanceLine()
+
+SSDisbalanceOp *disbalanceOpNext(SSDisbalanceOp *op)
+{
+	SSDisbalanceOp	*next;
+
+	next = op->next;
+	disbalanceOpRelease(op);
+
+	return next;
+} // disbalanceOpNext()
+
+// Apply disbalance
+void disbalanceOpApply(SSDisbalanceOp *op, SSWorkArray *work, unsigned int weight_min, unsigned int weight_max)
+{
+	SSWorkArray	*delta_work;
+	unsigned int	delta;
+
+	if (op->work_unit_delta > 0)  {
+		delta = (unsigned int)abs(op->work_unit_delta);
+		delta_work = workArrayInitWithLength(delta);
+		workArrayFillUnits(delta_work, weight_min, weight_max);
+		workArrayPushItems(work, delta_work);
+		workArrayRelease(delta_work);
+	}
+	else if (op->work_unit_delta < 0)  {
+		delta = (unsigned int)abs(op->work_unit_delta);
+		delta_work = workArrayPopItems(work, &delta);
+		workArrayRelease(delta_work);
+	}
+
+} // disbalanceOpApply
+

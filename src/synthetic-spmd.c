@@ -50,6 +50,11 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeBarrier);
 		//printf("[%3d] iter: %d, barrier: %ld us\n", config->mpi_rank, i, t2-t1);
 		
+
+		// Disbalance
+		// Apply disbalance, where applicable.
+		disbalance_op = disbalance(i, disbalance_op, work_array, config);
+		
 		// Work
 		t1 = getCurrentTime();
 		int array_length = work_array->length;
@@ -104,6 +109,23 @@ void barrier(int iteration, SSAppConfig *config)
 	MPI_Barrier(MPI_COMM_WORLD);
 } // barrier()
 
+SSDisbalanceOp *disbalance(int iteration, SSDisbalanceOp *op, SSWorkArray *work_array, SSAppConfig *config)
+{
+	unsigned int	old_work_len;
+
+	while (op != NULL && op->iteration <= iteration)  {
+		old_work_len = work_array->length;
+		// Apply disbalance to work array.
+		disbalanceOpApply(op, work_array, config->wunit_weight[0], config->wunit_weight[1]);
+		fprintf(stderr, "App[%d] iter: %d, Apply disbalance %u -> %u (%p)\n", config->mpi_rank, iteration, old_work_len, work_array->length, work_array);
+
+		// Move to the next disbalance operation (and release the
+		// old one).
+		op = disbalanceOpNext(op);
+	}
+
+	return op;
+} // disbalance()
 
 void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices)
 {
@@ -126,7 +148,6 @@ void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_l
 //			workMatricesMultiply(matrices);
 //		}
 	}
-	
 	//ms = 0.50 * (long double)total_work;
 	ms = (long double)total_work;
 	//printf("%d\t%d\tGoing to work for %.2Lf ms (%u)\n", iteration, mpi_rank, ms, total_work);
@@ -337,10 +358,10 @@ int main(int argc, char **argv)
 			// Add 50% extra work units if we're the first two columns
 			config->wunits += 4*config->wunits;
 		}*/
-		if(config->mpi_rank < config->dims[0]*2 || config->mpi_rank % config->dims[0] == 0 || config->mpi_rank % config->dims[0] == 1){
+		/*if(config->mpi_rank < config->dims[0]*2 || config->mpi_rank % config->dims[0] == 0 || config->mpi_rank % config->dims[0] == 1){
                         // Add 50% extra work units if we're the first two columns and in the top two rows
                         config->wunits += 3*config->wunits;
-                }
+                }*/
 
 		work_array = workArrayInitWithLength(config->wunits);
 //		fprintf(stdout, "Soy la sintetica despues de workArrayInit \n");
@@ -351,11 +372,6 @@ int main(int argc, char **argv)
 
 		if (config->disbalance_file != NULL)
 			first_op = readDisbalanceFile(config->disbalance_file, config->x, config->y, config->dims[0], config->dims[1]);
-
-		while (first_op != NULL)  {
-			fprintf(stderr, "main(): App[%d]: D: %d, iter: %d\n", config->mpi_rank, first_op->work_unit_delta, first_op->iteration);
-			first_op = first_op->next;
-		}
 
 //		fprintf(stdout, "Soy la sintetica despues de peersInit \n");
 		applicationLoop(config, peers, work_array, first_op);

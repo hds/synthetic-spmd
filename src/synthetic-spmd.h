@@ -38,6 +38,7 @@ void releaseAppConfig(SSAppConfig *config);
 // **** Application Run Loop ****
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array, SSDisbalanceOp *disbalance_op);
 void barrier(int iteration, SSAppConfig *config);
+SSDisbalanceOp *disbalance(int iteration, SSDisbalanceOp *op, SSWorkArray *work_array, SSAppConfig *config);
 void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices);
 void communication(int iteration, SSPeers *peers, unsigned int comm_weight, int rank);
 void migration(unsigned int iteration, unsigned int migration_freq, SSPeers *peers, SSWorkArray *work_array, int *movement);
