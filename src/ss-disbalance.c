@@ -118,6 +118,7 @@ void disbalanceOpRelease(SSDisbalanceOp *op)
 int deltaForEdgeLine(char **args, unsigned int len, unsigned int x, unsigned int y, unsigned int width, unsigned int height)
 {
 	int	depth, delta = 0;
+	int	i;
 
 	if (len < 5)  {
 		fprintf(stderr, "Error, an edge disbalance requires 5 fields.\n");
@@ -125,23 +126,25 @@ int deltaForEdgeLine(char **args, unsigned int len, unsigned int x, unsigned int
 	}
 
 	depth = atoi(args[3]);
-	switch (args[2][0])  {
-		case 'N':
-			if (y < depth)
-				delta = atoi(args[4]);
-			break;
-		case 'E':
-			if (x >= width-depth)
-				delta = atoi(args[4]);
-			break;
-		case 'S':
-			if (y >= height-depth)
-				delta = atoi(args[4]);
-			break;
-		case 'W':
-			if (x < depth)
-				delta = atoi(args[4]);
-			break;
+	for (i = 0; i < strlen(args[2]); i++)  {
+		switch (args[2][i])  {
+			case 'N':
+				if (y < depth)
+					delta = atoi(args[4]);
+				break;
+			case 'E':
+				if (x >= width-depth)
+					delta = atoi(args[4]);
+				break;
+			case 'S':
+				if (y >= height-depth)
+					delta = atoi(args[4]);
+				break;
+			case 'W':
+				if (x < depth)
+					delta = atoi(args[4]);
+				break;
+		}
 	}
 
 	return delta;

@@ -4,6 +4,8 @@
 #include <string.h>
 #include <time.h>
 
+#include <unistd.h>
+
 #include "synthetic-spmd.h"
 #include "ss-migration.h"
 #include "ss-disbalance.h"
@@ -210,8 +212,9 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->wunit_weight[0] = 40;
 	config->wunit_weight[1] = 40;
 	config->comm_weight = 1;
-	config->iterations = 50;
-	config->migration_freq = 2;
+	config->iterations = 100;
+	config->migration_freq = 3;
+
 	config->disbalance_file = NULL;
 	config->verbose = 0;
 
@@ -283,6 +286,9 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 		else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)  {
 			displayUsageAndReleaseConfig(config);
 		}
+		else  {
+			fprintf(stderr, "warning: Unknown command line switch ignored: [%s]\n", argv[i]);
+		}
 	}
 
 	if (config->dims[0] == 0)  {
@@ -328,7 +334,7 @@ int main(int argc, char **argv)
 	SSDisbalanceOp	*first_op = NULL;
 
 	double start_time, end_time;
-	int rank;
+	int rank, size;
 
 	MPI_Init(&argc, &argv);
 	
@@ -336,19 +342,30 @@ int main(int argc, char **argv)
 	MPI_Barrier(MPI_COMM_WORLD);
 	start_time = MPI_Wtime();
 
-	fprintf(stdout, "argv[0]=%s\n", argv[0]);
-	fprintf(stdout, "argv[1]=%s\n", argv[1]);
-	fprintf(stdout, "argv[2]=%s\n", argv[2]);
+
+	char    hn[256];
+
+	gethostname(hn, 256);
+
+	MPI_Comm_size (MPI_COMM_WORLD, &size);  /* get number of processes */
+	fprintf( stdout, "[%s] Hello world from process %d of %d\n", hn, rank, size );
+
+	int i;
+	for (i = 0; i < argc; i++)
+		fprintf(stdout, "argv[%d]: [%s]\n", i, argv[i]);
+
 	config = initAppConfig(argc, argv);
 	//fprintf(stderr, "Sintetica[%d]\n", rank);
 	Insert_DMLib();
+	fprintf(stdout, "Soy la sintetica despues de insert DMLib\n");
+
 	int a = TEST;
 	if (config)  {
-//		fprintf(stdout, "Soy la sintetica dentro de if(config)\n");
+		fprintf(stdout, "Soy la sintetica dentro de if(config)\n");
 		peers = peersInit(config->dims, config->mpi_rank);
 		/*if (peersRealPeerCount(peers) < 4)  {
 			// Add ~50% extra work units if we're on a border.
-			config->wunits += (config->wunits/2);
+			config->wunits += 3*(config->wunits);
 		}*/
 		/*if (config->mpi_rank < config->dims[0]*2)  {
 			// Add ~50% extra work units if we're in the top two rows
@@ -358,26 +375,32 @@ int main(int argc, char **argv)
 			// Add 50% extra work units if we're the first two columns
 			config->wunits += 4*config->wunits;
 		}*/
-		/*if(config->mpi_rank < config->dims[0]*2 || config->mpi_rank % config->dims[0] == 0 || config->mpi_rank % config->dims[0] == 1){
+
+		/*if(config->mpi_rank < config->dims[0]*2 || config->mpi_rank % config->dims[0] == 0 || config->mpi_rank % config->dims[0] == 1 || config->mpi_rank >= config->mpi_size - config->dims[0]*2){
                         // Add 50% extra work units if we're the first two columns and in the top two rows
-                        config->wunits += 3*config->wunits;
+                        config->wunits += config->wunits;
                 }*/
+		fprintf(stdout, "Soy la sintetica despues de peersInit \n");
 
 		work_array = workArrayInitWithLength(config->wunits);
-//		fprintf(stdout, "Soy la sintetica despues de workArrayInit \n");
+		fprintf(stdout, "Soy la sintetica despues de workArrayInit \n");
 		workArrayFillUnits(work_array, config->wunit_weight[0], config->wunit_weight[1]);
 		//workArrayPrintUnits(work_array);
-//		fprintf(stdout, "Soy la sintetica despues de workArrayFill \n");
+		fprintf(stdout, "Soy la sintetica despues de workArrayFill \n");
 //		fprintf(stdout, "Valor de TEST=%d\n", TEST);
 
 		if (config->disbalance_file != NULL)
 			first_op = readDisbalanceFile(config->disbalance_file, config->x, config->y, config->dims[0], config->dims[1]);
+		else
+			first_op = readDisbalanceFile("disbalance.txt", config->x, config->y, config->dims[0], config->dims[1]);
 
-//		fprintf(stdout, "Soy la sintetica despues de peersInit \n");
 		applicationLoop(config, peers, work_array, first_op);
 		fprintf(stdout, "Soy la sintetica despues de applicationLoop \n");
 		workArrayRelease(work_array);
 		fprintf(stdout, "Soy la sintetica despues de workArrayRelease \n");
+	}
+	else  {
+		fprintf(stderr, "error: config is NULL, application loop not executed.\n");
 	}
 	
 	MPI_Barrier(MPI_COMM_WORLD);
