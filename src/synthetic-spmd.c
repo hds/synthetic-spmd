@@ -25,17 +25,22 @@ static int order_iter;
 
 int TEST=2;
 
-
 void Insert_DMLib(){
 	int a;
 	a = 2;
 	fprintf(stdout, "Insert_DMLib\n");
 }
 
+void Unregister_DMLib()  {
+	int b;
+	b = 4;
+	fprintf(stdout, "Unregister_DMLib\n");
+}
+
 void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_array, SSDisbalanceOp *disbalance_op)
 {
 	unsigned int	i;
-	SSTInterval	t1, t2;
+	SSTInterval	t1, t2, iter_t;
 	SSWorkMatrices	matrices;
 	int		movement[MAX_PEER_COUNT];
 
@@ -49,6 +54,9 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 		t1 = getCurrentTime();
 		barrier(i, config);
 		t2 = getCurrentTime();
+		if (i > 0)
+			outputElapsedTime(i-1, config->mpi_rank, t2-iter_t, SSBadgeIteration);
+		iter_t = t2;
 		outputElapsedTime(i, config->mpi_rank, t2-t1, SSBadgeBarrier);
 		//printf("[%3d] iter: %d, barrier: %ld us\n", config->mpi_rank, i, t2-t1);
 		
@@ -99,6 +107,10 @@ void applicationLoop(SSAppConfig *config, SSPeers *peers, SSWorkArray *work_arra
 
 	}
 
+	barrier(i, config);
+	t2 = getCurrentTime();
+	outputElapsedTime(i-1, config->mpi_rank, t2-iter_t, SSBadgeIteration);
+
 
 	workMatricesRelease(&matrices);
 } // applicationLoop()
@@ -131,7 +143,7 @@ SSDisbalanceOp *disbalance(int iteration, SSDisbalanceOp *op, SSWorkArray *work_
 
 void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_length, SSWorkMatrices matrices)
 {
-	unsigned int	u;
+	unsigned int	u, w;
 	unsigned int	total_work;
 	long double	ms;
 	//char		prefix[40];
@@ -146,14 +158,14 @@ void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_l
 	for (u = 0; u < work_array->length; u++)  {
 		total_work += work_array->elements[u].weight;
 		//ms = 0.15 * (long double)work_array->elements[u].weight;
-//		for (w = 0; w < work_array->elements[u].weight; w++)  {
-//			workMatricesMultiply(matrices);
-//		}
+		for (w = 0; w < work_array->elements[u].weight; w++)  {
+			workMatricesMultiply(matrices);
+		}
 	}
 	//ms = 0.50 * (long double)total_work;
-	ms = (long double)total_work;
+	//ms = (long double)total_work;
 	//printf("%d\t%d\tGoing to work for %.2Lf ms (%u)\n", iteration, mpi_rank, ms, total_work);
-	workBusy(ms);
+	//workBusy(ms);
 
 	//printf("%d\t%d\tEnd of work()\n", iteration, mpi_rank);
 
@@ -212,7 +224,7 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->wunit_weight[0] = 40;
 	config->wunit_weight[1] = 40;
 	config->comm_weight = 1;
-	config->iterations = 100;
+	config->iterations = 10;
 	config->migration_freq = 3;
 
 	config->disbalance_file = NULL;
@@ -406,6 +418,8 @@ int main(int argc, char **argv)
 	MPI_Barrier(MPI_COMM_WORLD);
     	end_time = MPI_Wtime();
 	fprintf(stdout, "Task[%d]. Execution time = %.2f segundos\n", rank, (end_time-start_time));	
+
+	Unregister_DMLib();
 	
 	MPI_Finalize();
 

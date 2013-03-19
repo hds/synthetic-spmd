@@ -14,6 +14,7 @@
 #define	SSBadgeWork		"Work"
 #define	SSBadgeCommunication	"Communication"
 #define	SSBadgeMigration	"Migration"
+#define	SSBadgeIteration	"Iteration"
 
 typedef struct __SSAppConfig  {
 	int		mpi_rank;

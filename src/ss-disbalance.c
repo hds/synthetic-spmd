@@ -219,6 +219,36 @@ int deltaForHotspotLine(char **args, unsigned int len, unsigned int x, unsigned 
 	return delta;
 } // deltaForHotspotLine()
 
+int deltaForRectangleLine(char **args, unsigned int len, unsigned int x, unsigned int y)
+{
+	int	delta = 0;
+	int	xnw, ynw, xse, yse;
+
+	if (len < 5)  {
+		fprintf(stderr, "Error, a rectangle disbalance requires 5 fields.\n");
+		return 0;
+	}
+
+	if (sscanf(args[2], "%dx%d", &xnw, &ynw) != 2)  {
+		fprintf(stderr, "Error, bad rectangle NW corner coordinates: %s\n", args[2]);
+		return 0;
+	}
+	if (sscanf(args[3], "%dx%d", &xse, &yse) != 2)  {
+		fprintf(stderr, "Error, bad rectangle SE corner coordinates: %s\n", args[3]);
+		return 0;
+	}
+
+	if (xnw > xse || ynw > yse)  {
+		fprintf(stderr, "Error, NW corner (%s) must be <= SE corner (%s)\n", args[2], args[3]);
+		return 0;
+	}
+
+	if ((int)x >= xnw && (int)x <= xse && (int)y >= ynw && (int)y <= yse)
+		delta = atoi(args[4]);
+
+	return delta;
+} // deltaForRectangleLine()
+
 int deltaForGlobalLine(char **args, unsigned int len)
 {
 	return atoi(args[2]);
@@ -242,6 +272,9 @@ int deltaForDisbalanceLine(char **args, unsigned int len, unsigned int x, unsign
 	}
 	else if (strcmp(args[1], "hotspot") == 0)  {
 		delta = deltaForHotspotLine(args, len, x, y);
+	}
+	else if (strcmp(args[1], "rectangle") == 0)  {
+		delta = deltaForRectangleLine(args, len, x, y);
 	}
 	else if (strcmp(args[1], "global") == 0)  {
 		delta = deltaForGlobalLine(args, len);
