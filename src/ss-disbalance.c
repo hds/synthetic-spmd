@@ -239,7 +239,7 @@ int deltaForCentredHotspotLine(char **args, unsigned int len, unsigned int x, un
 	fhy = ((float)hy) - 0.5;
 	radius = (float)atoi(args[3]);
 
-	if (fabsf(hx-((float)x)) + abs(hy-((float)y)) <= radius)
+	if (fabsf(fhx-((float)x)) + fabsf(fhy-((float)y)) <= radius)
 		delta = atoi(args[4]);
 
 	return delta;
