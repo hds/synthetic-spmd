@@ -221,10 +221,11 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->dims[0] = 0;
 	config->dims[1] = 0;
 	config->wunits = 20;
-	config->wunit_weight[0] = 40;
-	config->wunit_weight[1] = 40;
+	//Cambiado los pesos para simular la sintetica con busy pero ahora con matrices
+	config->wunit_weight[0] = 6;
+	config->wunit_weight[1] = 6 ;
 	config->comm_weight = 1;
-	config->iterations = 10;
+	config->iterations = 100;
 	config->migration_freq = 3;
 
 	config->disbalance_file = NULL;
