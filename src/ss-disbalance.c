@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "ss-disbalance.h"
 
@@ -219,6 +220,31 @@ int deltaForHotspotLine(char **args, unsigned int len, unsigned int x, unsigned 
 	return delta;
 } // deltaForHotspotLine()
 
+int deltaForCentredHotspotLine(char **args, unsigned int len, unsigned int x, unsigned int y)
+{
+	int	delta = 0;
+	int	hx, hy;
+	float	radius, fhx, fhy;
+
+	if (len < 5)  {
+		fprintf(stderr, "Error, a centred hotspot disbalance requires 5 fields.\n");
+		return 0;
+	}
+
+	if (sscanf(args[2], "%dx%d", &hx, &hy) != 2)  {
+		fprintf(stderr, "Error, bad centred hotspot disbalance coordinates: %s\n", args[2]);
+		return 0;
+	}
+	fhx = ((float)hx) - 0.5;
+	fhy = ((float)hy) - 0.5;
+	radius = (float)atoi(args[3]);
+
+	if (fabsf(hx-((float)x)) + abs(hy-((float)y)) <= radius)
+		delta = atoi(args[4]);
+
+	return delta;
+} // deltaForCentredHotspotLine()
+
 int deltaForRectangleLine(char **args, unsigned int len, unsigned int x, unsigned int y)
 {
 	int	delta = 0;
@@ -272,6 +298,9 @@ int deltaForDisbalanceLine(char **args, unsigned int len, unsigned int x, unsign
 	}
 	else if (strcmp(args[1], "hotspot") == 0)  {
 		delta = deltaForHotspotLine(args, len, x, y);
+	}
+	else if (strcmp(args[1], "chotspot") == 0)  {
+		delta = deltaForCentredHotspotLine(args, len, x, y);
 	}
 	else if (strcmp(args[1], "rectangle") == 0)  {
 		delta = deltaForRectangleLine(args, len, x, y);
