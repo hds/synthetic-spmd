@@ -146,6 +146,8 @@ void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_l
 	unsigned int	u, w;
 	unsigned int	total_work;
 	long double	ms;
+	SSTInterval	t1, t2;
+	t1 = getCurrentTime();
 	//char		prefix[40];
 	//printf("%d\t%d\tBefore assign work_iteration\n", iteration, mpi_rank);
 	work_iteration = iteration;
@@ -158,17 +160,20 @@ void work(int iteration, int mpi_rank, SSWorkArray *work_array, int work_array_l
 	for (u = 0; u < work_array->length; u++)  {
 		total_work += work_array->elements[u].weight;
 		//ms = 0.15 * (long double)work_array->elements[u].weight;
-		for (w = 0; w < work_array->elements[u].weight; w++)  {
-			workMatricesMultiply(matrices);
-		}
+		//for (w = 0; w < work_array->elements[u].weight; w++)  {
+		//	workMatricesMultiply(matrices);
+		//}
 	}
+	fprintf(stdout, "%d\t%d\tTotal Work %d (units: %d)\n", iteration, mpi_rank, total_work, work_array->length);
 	//ms = 0.50 * (long double)total_work;
-	//ms = (long double)total_work;
+	ms = (long double)total_work;
 	//printf("%d\t%d\tGoing to work for %.2Lf ms (%u)\n", iteration, mpi_rank, ms, total_work);
-	//workBusy(ms);
+	workBusy(ms);
 
 	//printf("%d\t%d\tEnd of work()\n", iteration, mpi_rank);
-
+	
+	t2 = getCurrentTime();
+	outputElapsedTime(iteration, mpi_rank, t2-t1, SSBadgeWorkInner);
 } // work()
 
 void communication(int interation, SSPeers *peers, unsigned int comm_weight, int rank)
@@ -222,8 +227,8 @@ SSAppConfig *initAppConfig(int argc, char **argv)
 	config->dims[1] = 0;
 	config->wunits = 20;
 	//Cambiado los pesos para simular la sintetica con busy pero ahora con matrices
-	config->wunit_weight[0] = 6;
-	config->wunit_weight[1] = 6 ;
+	config->wunit_weight[0] = 20;
+	config->wunit_weight[1] = 20;
 	config->comm_weight = 1;
 	config->iterations = 100;
 	config->migration_freq = 3;

@@ -12,6 +12,7 @@
 
 #define	SSBadgeBarrier		"Barrier"
 #define	SSBadgeWork		"Work"
+#define	SSBadgeWorkInner	"WorkInner"
 #define	SSBadgeCommunication	"Communication"
 #define	SSBadgeMigration	"Migration"
 #define	SSBadgeIteration	"Iteration"
