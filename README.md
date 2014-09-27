@@ -56,12 +56,12 @@ separated by tabs. The lines should be ordered by iteration. For format is:
     <iter>  rectangle   <WxN>       <ExS>       <delta>
     <iter>  global      <delta>
 
- - <iter> is the iteration in which the disbalance will be introduced.
- - <delta> is the amount of load to be added (or removed if negative) from the affected nodes.
- - <dir> is a combination of cardinal directions N, S, E, W. These can be combined, so NE means north *and* west
- - <depth> Is the number of rows/columns from the edge to add disbalance to.
- - <rowid> is the index of a single row
- - <colid> is the index of a single column
- - <RxC> is the coordinates of a single node, rowid 'x' colid
- - <radius> is the radius of a circular hotspot, this begins with a single node for 'hotspot' or an intersection between nodes for 'chotspot' (so that it's centred).
- - <WxN> and <ExS> are the coordinates of the top-left (north-west) corner and bottom-right (south-east) corner which form a rectangle.
+ - `iter` is the iteration in which the disbalance will be introduced.
+ - `delta` is the amount of load to be added (or removed if negative) from the affected nodes.
+ - `dir` is a combination of cardinal directions N, S, E, W. These can be combined, so NE means north *and* west
+ - `depth` Is the number of rows/columns from the edge to add disbalance to.
+ - `rowid` is the index of a single row
+ - `colid` is the index of a single column
+ - `RxC` is the coordinates of a single node, rowid 'x' colid
+ - `radius` is the radius of a circular hotspot, this begins with a single node for 'hotspot' or an intersection between nodes for 'chotspot' (so that it's centred).
+ - `WxN` and `ExS` are the coordinates of the top-left (north-west) corner and bottom-right (south-east) corner which form a rectangle.
